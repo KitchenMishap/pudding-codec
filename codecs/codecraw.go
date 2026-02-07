@@ -6,6 +6,7 @@ import (
 	"github.com/KitchenMishap/pudding-codec/types"
 )
 
+// CodecRaw64 simply stores the 64 bit number as a raw 64 bit number
 type CodecRaw64 struct {
 }
 

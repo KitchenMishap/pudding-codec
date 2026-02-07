@@ -12,13 +12,12 @@ type ICodecClass interface {
 	// I may need to the use the prior supplied codecs to decode my params
 	ReadParams(paramsCodec ICodecClass, stream bitstream.IBitReader) error
 	// Encode a value into a bitcode using my parameters. This is my speciality
-	Encode(val types.TData, writer bitstream.IBitWriter) (didntKnowHow bool, err error)
+	Encode(data types.TData, writer bitstream.IBitWriter) (didntKnowHow bool, err error)
 	// Decode a value from a bitcode
 	Decode(reader bitstream.IBitReader) (types.TData, error)
 }
 
-type ICodecCollection interface {
-	Count() int
-	AddCodec(codec ICodecClass)
-	GetCodec(idx int) ICodecClass
+type INamedCodecCollection interface {
+	AddCodec(codec ICodecClass, name string) error
+	GetCodec(name string) (ICodecClass, error)
 }

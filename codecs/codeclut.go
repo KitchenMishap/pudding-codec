@@ -7,6 +7,9 @@ import (
 	"github.com/KitchenMishap/pudding-codec/types"
 )
 
+// CodecLut64 stores a 64 bit to 64 bit look up table in the metadata (params)
+// for the numbers in knows about. So 64 bit indices rather than 64 bit values
+// are stored when encoded
 type CodecLut64 struct {
 	values  []types.TData                // For turning an index into a value
 	indices map[types.TData]types.TIndex // For turning a value into an index

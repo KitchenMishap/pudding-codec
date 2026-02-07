@@ -9,7 +9,7 @@ import (
 )
 
 type Engine struct {
-	theCodecs codecs.ICodecCollection
+	composite codecs.ICodecClass
 	streamer  bitstream.IBitStream
 }
 
@@ -18,8 +18,7 @@ var _ IEngine = (*Engine)(nil)
 
 func NewEngine() *Engine {
 	result := Engine{}
-	result.theCodecs = codecs.NewCodecSlice()
-	result.theCodecs.AddCodec(codecs.NewCodecRaw64())
+	result.composite = codecs.NewCompositeExample()
 	result.streamer = bitstream.NewStringSlice()
 	return &result
 }
@@ -28,7 +27,7 @@ func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 	bitWriter := bitstream.NewBitWriter(writer)
 
 	length := len(data)
-	didntKnowHow, err := eng.theCodecs.GetCodec(0).Encode(types.TData(length), bitWriter)
+	didntKnowHow, err := eng.composite.Encode(types.TData(length), bitWriter)
 	if err != nil {
 		return err
 	}
@@ -37,7 +36,7 @@ func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 	}
 
 	for _, value := range data {
-		didntKnowHow, err = eng.theCodecs.GetCodec(0).Encode(value, bitWriter)
+		didntKnowHow, err = eng.composite.Encode(value, bitWriter)
 		if err != nil {
 			return err
 		}
@@ -56,13 +55,13 @@ func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 func (eng *Engine) Decode(reader io.Reader) (data []types.TData, err error) {
 	bitReader := bitstream.NewBitReader(reader)
 
-	length, err := eng.theCodecs.GetCodec(0).Decode(bitReader)
+	length, err := eng.composite.Decode(bitReader)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]types.TData, length)
 	for i := range length {
-		result[i], err = eng.theCodecs.GetCodec(0).Decode(bitReader)
+		result[i], err = eng.composite.Decode(bitReader)
 		if err != nil {
 			return nil, err
 		}
