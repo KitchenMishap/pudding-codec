@@ -24,35 +24,40 @@ func NewEngine() *Engine {
 }
 
 func (eng *Engine) Encode(data []types.TData, writer io.Writer) error {
+	bitWriter := bitstream.NewBitWriter(writer)
+
 	length := len(data)
-	bitCode := eng.theCodecs.GetCodec(0).Encode(types.TData(length))
-	err := eng.streamer.PushBack(bitCode)
+	err := eng.theCodecs.GetCodec(0).Encode(types.TData(length), bitWriter)
 	if err != nil {
 		return err
 	}
+
 	for _, value := range data {
-		bitCode = eng.theCodecs.GetCodec(0).Encode(value)
-		err = eng.streamer.PushBack(bitCode)
+		err = eng.theCodecs.GetCodec(0).Encode(value, bitWriter)
 		if err != nil {
 			return err
 		}
+	}
+	err = bitWriter.FlushBits()
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 func (eng *Engine) Decode(reader io.Reader) (data []types.TData, err error) {
-	bitCode, err := eng.streamer.PopFront(64)
+	bitReader := bitstream.NewBitReader(reader)
+
+	length, err := eng.theCodecs.GetCodec(0).Decode(bitReader)
 	if err != nil {
 		return nil, err
 	}
-	length := eng.theCodecs.GetCodec(0).Decode(bitCode)
 	result := make([]types.TData, length)
 	for i := range length {
-		bitCode, err := eng.streamer.PopFront(64)
+		result[i], err = eng.theCodecs.GetCodec(0).Decode(bitReader)
 		if err != nil {
 			return nil, err
 		}
-		result[i] = eng.theCodecs.GetCodec(0).Decode(bitCode)
 	}
 	return result, nil
 }
