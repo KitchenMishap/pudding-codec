@@ -18,7 +18,6 @@ var _ ICodecClass = (*CompositeExample)(nil)
 
 func NewCompositeExample() *CompositeExample {
 	result := CompositeExample{}
-	result.Init()
 	codecRaw := NewCodecRaw64()
 	codecLut := NewCodecLut64()
 	err := result.AddCodec(codecRaw, "Raw")

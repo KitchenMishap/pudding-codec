@@ -23,6 +23,9 @@ func (cc *CodecCompositeBase) Init() {
 }
 
 func (cc *CodecCompositeBase) AddCodec(codec ICodecClass, name string) error {
+	if cc.codecs == nil {
+		cc.Init()
+	}
 	_, alreadyExists := cc.codecs[name]
 	if alreadyExists {
 		return errors.New("CodecComposite.AddCodec: name already exists")
