@@ -6,12 +6,17 @@ import (
 	"strings"
 )
 
-// Check that implements
-var _ IBitStream = (*StringSlice)(nil)
-
 // A FIFO queue
 type StringSlice struct {
 	entries []string // Index 0 is the first thing put in
+}
+
+// Check that implements
+var _ IBitStream = (*StringSlice)(nil)
+
+func NewStringSlice() *StringSlice {
+	result := StringSlice{}
+	return &result
 }
 
 func (bcs *StringSlice) PushBack(bitCode bitcode.IBitCode) error {
@@ -24,7 +29,7 @@ func (bcs *StringSlice) PushBack(bitCode bitcode.IBitCode) error {
 	return nil
 }
 
-func (bcs *StringSlice) PopFront() (bitcode.IBitCode, error) {
+func (bcs *StringSlice) PopFront(bitCount int) (bitcode.IBitCode, error) {
 	length := len(bcs.entries)
 	if length == 0 {
 		return nil, errors.New("no entries in StringSlice")
@@ -34,6 +39,9 @@ func (bcs *StringSlice) PopFront() (bitcode.IBitCode, error) {
 	sr := strings.NewReader(str)
 	bc := bitcode.NewBitCode64(0, 0)
 	err := bc.ReadBytes(sr)
+	if bc.Length() != bitCount {
+		panic("found the wrong number of bits")
+	}
 	if err != nil {
 		return nil, err
 	}

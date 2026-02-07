@@ -28,12 +28,12 @@ func TestFifo(t *testing.T) {
 	}
 
 	// Read
-	newBitCode1, err := stream.PopFront()
+	newBitCode1, err := stream.PopFront(64)
 	if err != nil {
 		t.Error(err)
 	}
 	newNum1 := codeclist.GetCodec(rawIndex).Decode(newBitCode1)
-	newBitCode2, err := stream.PopFront()
+	newBitCode2, err := stream.PopFront(64)
 	if err != nil {
 		t.Error(err)
 	}
