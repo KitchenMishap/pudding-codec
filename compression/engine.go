@@ -10,7 +10,6 @@ import (
 
 type Engine struct {
 	composite codecs.ICodecClass
-	streamer  bitstream.IBitStream
 }
 
 // Check that implements
@@ -19,7 +18,6 @@ var _ IEngine = (*Engine)(nil)
 func NewEngine() *Engine {
 	result := Engine{}
 	result.composite = codecs.NewCompositeExample()
-	result.streamer = bitstream.NewStringSlice()
 	return &result
 }
 
