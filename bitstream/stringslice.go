@@ -24,13 +24,13 @@ func (bcs *StringSlice) PushBack(bitCode bitcode.IBitCode) error {
 	return nil
 }
 
-func (bcs *StringSlice) Pop() (bitcode.IBitCode, error) {
+func (bcs *StringSlice) PopFront() (bitcode.IBitCode, error) {
 	length := len(bcs.entries)
 	if length == 0 {
 		return nil, errors.New("no entries in StringSlice")
 	}
-	str := bcs.entries[length-1]
-	bcs.entries = bcs.entries[:length-1]
+	str := bcs.entries[0]
+	bcs.entries = bcs.entries[1:]
 	sr := strings.NewReader(str)
 	bc := bitcode.NewBitCode64(0, 0)
 	err := bc.ReadBytes(sr)
