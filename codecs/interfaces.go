@@ -6,15 +6,15 @@ import (
 )
 
 type ICodecClass interface {
+	// Write my parameters (metadata) to stream using any of the supplied codecs
+	WriteParams(paramsCodec ICodecClass, stream bitstream.IBitWriter) error
 	// Read my own parameters (metadata) from stream
 	// I may need to the use the prior supplied codecs to decode my params
-	ReadParams(initializedCodecs []ICodecClass, stream bitstream.IBitStream)
+	ReadParams(paramsCodec ICodecClass, stream bitstream.IBitReader) error
 	// Encode a value into a bitcode using my parameters. This is my speciality
-	Encode(val types.TData, writer bitstream.IBitWriter) error
+	Encode(val types.TData, writer bitstream.IBitWriter) (didntKnowHow bool, err error)
 	// Decode a value from a bitcode
 	Decode(reader bitstream.IBitReader) (types.TData, error)
-	// Write my parameters (metadata) to stream using any of the supplied codecs
-	WriteParams(initializedCodecs []ICodecClass, stream bitstream.IBitStream)
 }
 
 type ICodecCollection interface {

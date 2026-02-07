@@ -16,14 +16,22 @@ func NewCodecRaw64() *CodecRaw64 {
 	return &CodecRaw64{}
 }
 
-func (codec *CodecRaw64) ReadParams(initializedCodecs []ICodecClass,
-	stream bitstream.IBitStream) {
-	// Nothing to read, CodecRaw64 has no parameters
+func (codec *CodecRaw64) WriteParams(paramsCodec ICodecClass,
+	stream bitstream.IBitWriter) error {
+	// Nothing to write, CodecRaw64 has no parameters
+	return nil
 }
 
-func (codec *CodecRaw64) Encode(data types.TData, bitWriter bitstream.IBitWriter) error {
+func (codec *CodecRaw64) ReadParams(paramsCodec ICodecClass,
+	stream bitstream.IBitReader) error {
+	// Nothing to read, CodecRaw64 has no parameters
+	return nil
+}
+
+func (codec *CodecRaw64) Encode(data types.TData,
+	bitWriter bitstream.IBitWriter) (didntKnowHow bool, err error) {
 	bitCode := bitcode.NewBitCode64(uint64(data), 64)
-	return bitWriter.WriteBits(bitCode.Bits(), bitCode.Length())
+	return false, bitWriter.WriteBits(bitCode.Bits(), bitCode.Length())
 }
 
 func (codec *CodecRaw64) Decode(bitReader bitstream.IBitReader) (types.TData, error) {
@@ -32,9 +40,4 @@ func (codec *CodecRaw64) Decode(bitReader bitstream.IBitReader) (types.TData, er
 		return 0, err
 	}
 	return bits, nil
-}
-
-func (codec *CodecRaw64) WriteParams(initializedCodecs []ICodecClass,
-	stream bitstream.IBitStream) {
-	// Nothing to write, CodecRaw64 has no parameters
 }

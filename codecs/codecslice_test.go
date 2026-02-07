@@ -10,9 +10,7 @@ import (
 func TestCodecSlice(t *testing.T) {
 	// Prepare
 	fName := "../TestingFiles/testCodecSlice.bin"
-	codeclist := NewCodecSlice()
-	codeclist.AddCodec(NewCodecRaw64())
-	rawIndex := 0
+	paramsCodec := NewCodecRaw64()
 	file, err := os.Create(fName)
 	if err != nil {
 		t.Error(err)
@@ -21,14 +19,21 @@ func TestCodecSlice(t *testing.T) {
 
 	// Write
 	num1 := types.TData(123456789)
-	err = codeclist.GetCodec(rawIndex).Encode(num1, bitWriter)
+	dontKnowHow, err := paramsCodec.Encode(num1, bitWriter)
 	if err != nil {
 		t.Error(err)
 	}
+	if dontKnowHow {
+		t.Error("Don't Know How")
+	}
+
 	num2 := types.TData(987654321)
-	err = codeclist.GetCodec(rawIndex).Encode(num2, bitWriter)
+	dontKnowHow, err = paramsCodec.Encode(num2, bitWriter)
 	if err != nil {
 		t.Error(err)
+	}
+	if dontKnowHow {
+		t.Error("Don't Know How")
 	}
 	err = bitWriter.FlushBits()
 	if err != nil {
@@ -45,11 +50,11 @@ func TestCodecSlice(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	newNum1, err := codeclist.GetCodec(rawIndex).Decode(bitReader)
+	newNum1, err := paramsCodec.Decode(bitReader)
 	if err != nil {
 		t.Error(err)
 	}
-	newNum2, err := codeclist.GetCodec(rawIndex).Decode(bitReader)
+	newNum2, err := paramsCodec.Decode(bitReader)
 
 	if newNum1 != num1 {
 		t.Errorf("newNum1 != num1: %d != %d", newNum1, num1)

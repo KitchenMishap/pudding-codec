@@ -1,6 +1,7 @@
 package compression
 
 import (
+	"errors"
 	"github.com/KitchenMishap/pudding-codec/bitstream"
 	"github.com/KitchenMishap/pudding-codec/codecs"
 	"github.com/KitchenMishap/pudding-codec/types"
@@ -23,25 +24,32 @@ func NewEngine() *Engine {
 	return &result
 }
 
-func (eng *Engine) Encode(data []types.TData, writer io.Writer) error {
+func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 	bitWriter := bitstream.NewBitWriter(writer)
 
 	length := len(data)
-	err := eng.theCodecs.GetCodec(0).Encode(types.TData(length), bitWriter)
+	didntKnowHow, err := eng.theCodecs.GetCodec(0).Encode(types.TData(length), bitWriter)
 	if err != nil {
 		return err
 	}
+	if didntKnowHow {
+		return errors.New("Engine.Encode(), length, encoder did not know how")
+	}
 
 	for _, value := range data {
-		err = eng.theCodecs.GetCodec(0).Encode(value, bitWriter)
+		didntKnowHow, err = eng.theCodecs.GetCodec(0).Encode(value, bitWriter)
 		if err != nil {
 			return err
+		}
+		if didntKnowHow {
+			return errors.New("Engine.Encode(), data, encoder did not know how")
 		}
 	}
 	err = bitWriter.FlushBits()
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
