@@ -2,6 +2,7 @@ package compression
 
 import (
 	"errors"
+	"fmt"
 	"github.com/KitchenMishap/pudding-codec/bitstream"
 	"github.com/KitchenMishap/pudding-codec/codecs"
 	"github.com/KitchenMishap/pudding-codec/types"
@@ -23,9 +24,10 @@ func NewEngine() *Engine {
 
 func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 	bitWriter := bitstream.NewBitWriter(writer)
+	bitCounter := bitstream.NewBitCounterPassThrough(bitWriter)
 
 	length := len(data)
-	didntKnowHow, err := eng.composite.Encode(types.TData(length), bitWriter)
+	didntKnowHow, err := eng.composite.Encode(types.TData(length), bitCounter)
 	if err != nil {
 		return err
 	}
@@ -34,7 +36,7 @@ func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 	}
 
 	for _, value := range data {
-		didntKnowHow, err = eng.composite.Encode(value, bitWriter)
+		didntKnowHow, err = eng.composite.Encode(value, bitCounter)
 		if err != nil {
 			return err
 		}
@@ -46,6 +48,11 @@ func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 	if err != nil {
 		return err
 	}
+
+	startGB := bitstream.FormatBits(8 * 8 * uint64(len(data)))
+	endGB := bitstream.FormatBits(bitCounter.CountBits())
+	percent := 100 * float64(bitCounter.CountBits()) / float64(8*8*len(data))
+	fmt.Printf("Compressed %s into %s, %.2f%%\n", startGB, endGB, percent)
 
 	return nil
 }

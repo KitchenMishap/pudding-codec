@@ -8,3 +8,8 @@ type IBitWriter interface {
 type IBitReader interface {
 	ReadBits(bitCount int) (uint64, error)
 }
+
+type IBitCounter interface {
+	IBitWriter
+	CountBits() uint64
+}
