@@ -23,6 +23,7 @@ type CodecSelectorBase struct {
 func (csb *CodecSelectorBase) Encode(data types.TData,
 	writer bitstream.IBitWriter) (didntKnowHow bool, err error) {
 	// First we taste the possibilities to choose the selector
+	// Note that a selection of [0] corresponds to childCodecNames[1] (because [0] is the selector)
 	selection, err := csb.TasteSelections(data, csb.paramsCodec)
 	if err != nil {
 		return false, err
@@ -42,7 +43,8 @@ func (csb *CodecSelectorBase) Encode(data types.TData,
 		panic("selector codec didn't know how to encode selection")
 	}
 
-	selectedCodecName := csb.childCodecNames[selection]
+	// Offset of 1 because we don't want to "select the selector"
+	selectedCodecName := csb.childCodecNames[selection+1]
 	selectedCodec, ok := csb.childCodecs[selectedCodecName]
 	if !ok {
 		panic("selected a non-existent codec")
@@ -74,7 +76,8 @@ func (csb *CodecSelectorBase) Decode(reader bitstream.IBitReader) (types.TData, 
 	}
 
 	// Find the codec chosen by the selector
-	chosenCodecName := csb.childCodecNames[codecSelection]
+	// Offset of 1 so we don't "select the selector"
+	chosenCodecName := csb.childCodecNames[codecSelection+1]
 	chosenCodec, ok := csb.childCodecs[chosenCodecName]
 	if !ok {
 		panic("the chosen codec doesn't exist")
@@ -88,6 +91,9 @@ func (csb *CodecSelectorBase) Decode(reader bitstream.IBitReader) (types.TData, 
 	return data, nil
 }
 
+// Returns a selection code into the possible codecs
+// If it returns zero, it really means selectorCodecNames[1] (because [0] is the selector
+// codec itself for encoding/decoding the choice)
 func (csb *CodecSelectorBase) TasteSelections(data types.TData,
 	paramsCodec ICodecClass) (types.TIndex, error) {
 	// Back up the selector codec (the one that encodes the choice)
@@ -99,10 +105,10 @@ func (csb *CodecSelectorBase) TasteSelections(data types.TData,
 	}
 
 	// Iterate through other child codecs
-	winner := -1
+	winner := types.TIndex(math.MaxInt64)
 	winnerBitCost := uint64(math.MaxUint64)
 	for i, name := range csb.childCodecNames[1:] {
-		selection := types.TIndex(i + 1) // Plus one because the slice starts at one!
+		selection := types.TIndex(i) // 0 "means" childCodecNames[1] (because 0 is the selector codec)
 		codec := csb.childCodecs[name]
 
 		// Back up its current state
@@ -160,13 +166,13 @@ func (csb *CodecSelectorBase) TasteSelections(data types.TData,
 
 		// Are we winning?
 		if cost < winnerBitCost {
-			winner = i
+			winner = selection
 			winnerBitCost = cost
 		}
 	} // for codecs
 
 	// The winning selection
-	return types.TIndex(winner), nil
+	return winner, nil
 }
 
 func backupCodec(paramsCodec ICodecClass,
