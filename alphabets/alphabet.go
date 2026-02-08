@@ -1,4 +1,4 @@
-package data
+package alphabets
 
 import (
 	"github.com/KitchenMishap/pudding-codec/types"
@@ -7,25 +7,28 @@ import (
 
 type DataSet = []types.TData
 
-type ValueCount struct {
-	Value types.TData
-	Count types.TData
+type SymbolCount struct {
+	Symbol types.TSymbol
+	Count  types.TCount
 }
 
-type ValueFavourites = []ValueCount
+type AlphabetProfile = []SymbolCount
 
-type UniqueValues = []types.TData
+type Alphabet = []types.TSymbol
 
-func FavouritesUniques(dataSet DataSet) (ValueFavourites, UniqueValues) {
+// Each element can be from a DIFFERENT Alphabet (implied by context)
+type Sentence = []types.TSymbol
+
+func AlphabetProfileFromData(dataSet DataSet) (AlphabetProfile, Alphabet) {
 	counts := make(map[types.TData]types.TCount, 1000)
 	for _, v := range dataSet {
 		counts[v]++
 	}
 	// Turn map into an unsorted slice
-	favourites := make(ValueFavourites, len(counts))
+	favourites := make(AlphabetProfile, len(counts))
 	i := 0
 	for k, v := range counts {
-		favourites[i].Value = k
+		favourites[i].Symbol = k
 		favourites[i].Count = v
 		i++
 	}
@@ -34,9 +37,9 @@ func FavouritesUniques(dataSet DataSet) (ValueFavourites, UniqueValues) {
 		return favourites[i].Count > favourites[j].Count
 	})
 	// Create list of unique values
-	uniques := make(UniqueValues, len(favourites))
+	uniques := make(Alphabet, len(favourites))
 	for i, v := range favourites {
-		uniques[i] = v.Value
+		uniques[i] = v.Symbol
 	}
 	return favourites, uniques
 }
