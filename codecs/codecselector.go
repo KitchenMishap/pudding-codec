@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+type CodecSelector struct {
+	CodecSelectorBase
+}
+
+func NewCodecSelector(paramsCodec ICodecClass) *CodecSelector {
+	result := CodecSelector{}
+	result.paramsCodec = paramsCodec
+	return &result
+}
+
 // CodecSelectorBase is an embeddable class that adorns your own ICodecClass with the
 // ability to select from a number of encodings, according to which is cheapest bitwise,
 // or a number of decodings according to some selector bits in the stream

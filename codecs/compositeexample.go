@@ -19,8 +19,11 @@ var _ ICodecClass = (*CompositeExample)(nil)
 func NewCompositeExample() *CompositeExample {
 	result := CompositeExample{}
 	codecRaw := NewCodecRaw64()
-	codecLut := NewCodecLut64()
-	err := result.AddCodec(codecRaw, "Raw")
+	codecLut, err := NewCodecLut64(8)
+	if err != nil {
+		panic("couldn't add lut codec")
+	}
+	err = result.AddCodec(codecRaw, "Raw")
 	if err != nil {
 		panic("couldn't add raw codec")
 	}

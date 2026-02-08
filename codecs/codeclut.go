@@ -2,7 +2,6 @@ package codecs
 
 import (
 	"errors"
-	"github.com/KitchenMishap/pudding-codec/bitcode"
 	"github.com/KitchenMishap/pudding-codec/bitstream"
 	"github.com/KitchenMishap/pudding-codec/types"
 )
@@ -11,6 +10,7 @@ import (
 // for the numbers in knows about. So 64 bit indices rather than 64 bit values
 // are stored when encoded
 type CodecLut64 struct {
+	CodecCompositeBase
 	values  []types.TData                // For turning an index into a value
 	indices map[types.TData]types.TIndex // For turning a value into an index
 }
@@ -18,11 +18,16 @@ type CodecLut64 struct {
 // Check that implements
 var _ ICodecClass = (*CodecLut64)(nil)
 
-func NewCodecLut64() *CodecLut64 {
+func NewCodecLut64(indexBits int) (*CodecLut64, error) {
 	result := CodecLut64{}
 	result.values = make([]types.TData, 0)
 	result.indices = make(map[types.TData]types.TIndex)
-	return &result
+	indexCodec := NewCodecUintNBits(indexBits)
+	err := result.AddCodec(indexCodec, "Index")
+	if err != nil {
+		return nil, err
+	}
+	return &result, err
 }
 
 func (cl *CodecLut64) WriteParams(paramsCodec ICodecClass,
@@ -80,13 +85,27 @@ func (cl *CodecLut64) ReadParams(paramsCodec ICodecClass,
 
 func (cl *CodecLut64) Encode(data types.TData,
 	bitWriter bitstream.IBitWriter) (didntKnowHow bool, err error) {
+
+	cl.TeachValue(data)
+
 	index, ok := cl.indices[data]
 	if !ok {
 		return true, nil
 	}
 
-	bitCode := bitcode.NewBitCode64(uint64(index), 64)
-	return false, bitWriter.WriteBits(bitCode.Bits(), bitCode.Length())
+	indexCodec, err := cl.GetCodec("Index")
+	if err != nil {
+		return false, err
+	}
+	didntKnowHow, err = indexCodec.Encode(index, bitWriter)
+	if err != nil {
+		return false, err
+	}
+	if didntKnowHow {
+		panic("index codec didn't know how")
+	}
+
+	return false, nil
 }
 
 func (cl *CodecLut64) Decode(bitReader bitstream.IBitReader) (types.TData, error) {

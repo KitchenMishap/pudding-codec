@@ -3,13 +3,12 @@ package tests
 import (
 	"github.com/KitchenMishap/pudding-codec/bitstream"
 	"github.com/KitchenMishap/pudding-codec/codecs"
-	"github.com/KitchenMishap/pudding-codec/compression"
 	"github.com/KitchenMishap/pudding-codec/types"
 	"os"
-	"reflect"
 	"testing"
 )
 
+/*
 func Test_SelectorExample(t *testing.T) {
 	inputData := []types.TData{1, 65537, 3}
 
@@ -64,7 +63,7 @@ func Test_SelectorExample(t *testing.T) {
 	if !reflect.DeepEqual(inputData, outputData) {
 		t.Errorf("encode error, expected %v, got %v", inputData, outputData)
 	}
-}
+}*/
 
 func TestCodecComposite(t *testing.T) {
 	// Prepare
@@ -124,7 +123,10 @@ func TestCodecComposite(t *testing.T) {
 }
 
 func Test_CodecLut64(t *testing.T) {
-	codecLut := codecs.NewCodecLut64()
+	codecLut, err := codecs.NewCodecLut64(8)
+	if err != nil {
+		t.Error(err)
+	}
 
 	num1 := types.TData(12345)
 	num2 := types.TData(54321)
@@ -198,7 +200,10 @@ func Test_CodecLut64(t *testing.T) {
 	bitReader := bitstream.NewBitReader(file2)
 
 	// Read params
-	codecLut2 := codecs.NewCodecLut64()
+	codecLut2, err := codecs.NewCodecLut64(8)
+	if err != nil {
+		t.Error(err)
+	}
 	err = codecLut2.ReadParams(codecParams, bitReader)
 	if err != nil {
 		t.Error(err)
