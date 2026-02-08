@@ -103,7 +103,7 @@ func (cl *CodecLut64) Decode(bitReader bitstream.IBitReader) (types.TData, error
 	return val, nil
 }
 
-func (cl *CodecLut64) teachValue(data types.TData) {
+func (cl *CodecLut64) TeachValue(data types.TData) {
 	cl.values = append(cl.values, data)
 	newIndex := types.TIndex(len(cl.values) - 1)
 	cl.indices[data] = newIndex

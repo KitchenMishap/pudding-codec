@@ -6,8 +6,8 @@ import (
 )
 
 type CodecCompositeBase struct {
-	names  []string
-	codecs map[string]ICodecClass
+	childCodecNames []string
+	childCodecs     map[string]ICodecClass
 }
 
 // Check that implements
@@ -18,25 +18,25 @@ var _ INamedCodecCollection = (*CodecCompositeBase)(nil)
 // adds the required functions
 
 func (cc *CodecCompositeBase) Init() {
-	cc.names = make([]string, 0, 10)
-	cc.codecs = make(map[string]ICodecClass, 10)
+	cc.childCodecNames = make([]string, 0, 10)
+	cc.childCodecs = make(map[string]ICodecClass, 10)
 }
 
 func (cc *CodecCompositeBase) AddCodec(codec ICodecClass, name string) error {
-	if cc.codecs == nil {
+	if cc.childCodecs == nil {
 		cc.Init()
 	}
-	_, alreadyExists := cc.codecs[name]
+	_, alreadyExists := cc.childCodecs[name]
 	if alreadyExists {
 		return errors.New("CodecComposite.AddCodec: name already exists")
 	}
-	cc.names = append(cc.names, name)
-	cc.codecs[name] = codec
+	cc.childCodecNames = append(cc.childCodecNames, name)
+	cc.childCodecs[name] = codec
 	return nil
 }
 
 func (cc *CodecCompositeBase) GetCodec(name string) (ICodecClass, error) {
-	codec, exists := cc.codecs[name]
+	codec, exists := cc.childCodecs[name]
 	if !exists {
 		return nil, errors.New("CodecComposite.GetCodec: codec does not exist")
 	}
@@ -44,8 +44,8 @@ func (cc *CodecCompositeBase) GetCodec(name string) (ICodecClass, error) {
 }
 
 func (cc *CodecCompositeBase) WriteParams(paramsCodec ICodecClass, stream bitstream.IBitWriter) error {
-	for _, name := range cc.names {
-		codec := cc.codecs[name]
+	for _, name := range cc.childCodecNames {
+		codec := cc.childCodecs[name]
 		err := codec.WriteParams(paramsCodec, stream)
 		if err != nil {
 			return err
@@ -54,8 +54,8 @@ func (cc *CodecCompositeBase) WriteParams(paramsCodec ICodecClass, stream bitstr
 	return nil
 }
 func (cc *CodecCompositeBase) ReadParams(paramsCodec ICodecClass, stream bitstream.IBitReader) error {
-	for _, name := range cc.names {
-		codec := cc.codecs[name]
+	for _, name := range cc.childCodecNames {
+		codec := cc.childCodecs[name]
 		err := codec.ReadParams(paramsCodec, stream)
 		if err != nil {
 			return err

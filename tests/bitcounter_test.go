@@ -1,6 +1,7 @@
-package bitstream
+package tests
 
 import (
+	"github.com/KitchenMishap/pudding-codec/codecs"
 	"github.com/KitchenMishap/pudding-codec/compression"
 	"github.com/KitchenMishap/pudding-codec/types"
 	"os"
@@ -8,10 +9,13 @@ import (
 	"testing"
 )
 
-func Test_Engine(t *testing.T) {
+func Test_BitCounter(t *testing.T) {
 	inputData := []types.TData{1, 2, 3}
 
-	engine := compression.NewEngine()
+	paramsCodec := codecs.NewCodecRaw64()
+	dataCodec := codecs.NewCodecRaw64()
+
+	engine := compression.NewEngine(paramsCodec, dataCodec)
 
 	fName := "../TestingFiles/engineTest.bin"
 	file, err := os.Create(fName)

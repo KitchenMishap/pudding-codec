@@ -1,6 +1,7 @@
-package bitstream
+package tests
 
 import (
+	"github.com/KitchenMishap/pudding-codec/bitstream"
 	"os"
 	"testing"
 )
@@ -12,7 +13,7 @@ func Test_BitReaderWriter(t *testing.T) {
 		t.Error(err)
 	}
 
-	bitWriter := NewBitWriter(byteWriter)
+	bitWriter := bitstream.NewBitWriter(byteWriter)
 
 	num8bit := uint64(255)
 	num16bit := uint64(32768)
@@ -37,7 +38,7 @@ func Test_BitReaderWriter(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bitReader := NewBitReader(byteReader)
+	bitReader := bitstream.NewBitReader(byteReader)
 
 	num8bitBack, err := bitReader.ReadBits(8)
 	if err != nil {

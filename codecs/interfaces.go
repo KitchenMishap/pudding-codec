@@ -17,6 +17,11 @@ type ICodecClass interface {
 	Decode(reader bitstream.IBitReader) (types.TData, error)
 }
 
+type ICodecSelectorClass interface {
+	ICodecClass
+	SelectionCount() types.TCount
+}
+
 type INamedCodecCollection interface {
 	AddCodec(codec ICodecClass, name string) error
 	GetCodec(name string) (ICodecClass, error)

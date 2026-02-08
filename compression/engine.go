@@ -10,24 +10,36 @@ import (
 )
 
 type Engine struct {
-	composite codecs.ICodecClass
+	paramsCodec codecs.ICodecClass // For metadata
+	dataCodec   codecs.ICodecClass // For data
 }
 
 // Check that implements
 var _ IEngine = (*Engine)(nil)
 
-func NewEngine() *Engine {
+func NewEngine(paramsCodec codecs.ICodecClass, rootCodec codecs.ICodecClass) *Engine {
 	result := Engine{}
-	result.composite = codecs.NewCompositeExample()
+	result.paramsCodec = paramsCodec
+	result.dataCodec = rootCodec
 	return &result
 }
 
-func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
+func (eng *Engine) Encode(data []types.TData, writer io.Writer) error {
 	bitWriter := bitstream.NewBitWriter(writer)
 	bitCounter := bitstream.NewBitCounterPassThrough(bitWriter)
 
+	// Initially we'd train the engine; we haven't implemented that yet
+
+	// First we have to write the metadata (params) using the paramsCodec
+	// (of course the params codec can't itself have metadata! we'd have a chicken and egg)
+	err := eng.dataCodec.WriteParams(eng.paramsCodec, bitCounter)
+	if err != nil {
+		return err
+	}
+
+	// Secondly we write the actual data (which weirdly includes the length)
 	length := len(data)
-	didntKnowHow, err := eng.composite.Encode(types.TData(length), bitCounter)
+	didntKnowHow, err := eng.dataCodec.Encode(types.TData(length), bitCounter)
 	if err != nil {
 		return err
 	}
@@ -36,7 +48,7 @@ func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 	}
 
 	for _, value := range data {
-		didntKnowHow, err = eng.composite.Encode(value, bitCounter)
+		didntKnowHow, err = eng.dataCodec.Encode(value, bitCounter)
 		if err != nil {
 			return err
 		}
@@ -60,13 +72,21 @@ func (eng *Engine) Encode(data []types.TData, writer io.Writer) (err error) {
 func (eng *Engine) Decode(reader io.Reader) (data []types.TData, err error) {
 	bitReader := bitstream.NewBitReader(reader)
 
-	length, err := eng.composite.Decode(bitReader)
+	// First we have to read the metadata
+	err = eng.dataCodec.ReadParams(eng.paramsCodec, bitReader)
 	if err != nil {
 		return nil, err
 	}
+
+	// Secondly we read the data itself, which weirdly includes the length
+	length, err := eng.dataCodec.Decode(bitReader)
+	if err != nil {
+		return nil, err
+	}
+
 	result := make([]types.TData, length)
 	for i := range length {
-		result[i], err = eng.composite.Decode(bitReader)
+		result[i], err = eng.dataCodec.Decode(bitReader)
 		if err != nil {
 			return nil, err
 		}
