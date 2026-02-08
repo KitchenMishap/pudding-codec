@@ -22,7 +22,7 @@ func NewCodecLut64(indexBits int) (*CodecLut64, error) {
 	result := CodecLut64{}
 	result.values = make([]types.TData, 0)
 	result.indices = make(map[types.TData]types.TIndex)
-	indexCodec := NewCodecUintNBits(indexBits)
+	indexCodec := NewSymbolCodecNBits(indexBits)
 	err := result.AddCodec(indexCodec, "Index")
 	if err != nil {
 		return nil, err

@@ -6,7 +6,7 @@ func NewSelectorRawLutCombo(paramsCodec ICodecClass) (ICodecClass, error) {
 	if err != nil {
 		return nil, err
 	}
-	forSelection := NewCodecUintNBits(8)
+	forSelection := NewSymbolCodecNBits(8)
 	selection := NewCodecSelector(paramsCodec)
 	err = selection.AddCodec(forSelection, "SelectionChoice")
 	if err != nil {

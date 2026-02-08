@@ -9,13 +9,13 @@ import (
 	"testing"
 )
 
-func Test_UintNBits(t *testing.T) {
+func Test_NBits(t *testing.T) {
 	inputData := []types.TData{1, 2, 3, 255}
 
 	// Prepare a params codec (this could be the root of a tree)
 	paramsCodec := codecs.NewCodecRaw64()
 	// Prepare a data codec (this could be the root of a tree)
-	dataCodec := codecs.NewCodecUintNBits(8)
+	dataCodec := codecs.NewSymbolCodecNBits(8)
 	// Make the engine out of the above two codec trees
 	engine := compression.NewEngine(paramsCodec, dataCodec)
 
