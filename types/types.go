@@ -11,3 +11,6 @@ type TCount = uint64
 
 // A type which expresses a symbol
 type TSymbol = uint64
+
+// A type which expresses a count of bits
+type TBitCount = uint64
