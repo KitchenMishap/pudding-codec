@@ -43,3 +43,11 @@ func AlphabetProfileFromData(dataSet DataSet) (AlphabetProfile, Alphabet) {
 	}
 	return favourites, uniques
 }
+
+func NewAlphabet(symbolCount types.TCount) Alphabet {
+	result := make(Alphabet, symbolCount)
+	for i := range symbolCount {
+		result[i] = types.TSymbol(i)
+	}
+	return result
+}

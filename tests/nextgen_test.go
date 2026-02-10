@@ -1,36 +1,69 @@
 package tests
 
 import (
+	"github.com/KitchenMishap/pudding-codec/compositeroots"
 	engine2 "github.com/KitchenMishap/pudding-codec/engine"
-	"github.com/KitchenMishap/pudding-codec/enginenode"
+	"github.com/KitchenMishap/pudding-codec/scribenode"
+	"github.com/KitchenMishap/pudding-codec/traineenode"
 	"github.com/KitchenMishap/pudding-codec/types"
 	"math"
 	"testing"
 )
 
-func Test_LeafRaw(t *testing.T) {
-	data := []types.TData{1, 2, 3}
-	dataBits := types.TBitCount(64 * 3)
+func Test_RawVersusChoiceScribe(t *testing.T) {
+	data := []types.TData{1, 2, 3, math.MaxUint32}
+	dataBits := types.TBitCount(64 * len(data))
 
-	metaDataRoot := enginenode.NewLeafRaw()
-	dataRoot := enginenode.NewLeafRaw()
-	engine := engine2.NewNextGenEngine(metaDataRoot, dataRoot)
+	// Raw
+	metaDataRootRaw := compositeroots.NewRawScribe()
+	dataRootRaw := compositeroots.NewRawScribe()
+	engineRaw := engine2.NewNextGenEngine(
+		scribenode.WrapScribeAsBidderScribe(metaDataRootRaw),
+		traineenode.WrapScribeAsTrainee(dataRootRaw))
 
-	bidBits := engine.BidBits(data)
-	if bidBits != dataBits {
+	rawBits, refused, err := engineRaw.BidBits(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refused {
+		t.Fatal("Engine refused")
+	}
+	if rawBits != dataBits {
 		t.Fatal("wrong bits bid")
 	}
+
+	// Choice
+	metaDataRootChoice := compositeroots.NewChoiceScribe()
+	dataRootChoice := compositeroots.NewChoiceScribe()
+	engineChoice := engine2.NewNextGenEngine(
+		scribenode.WrapScribeAsBidderScribe(metaDataRootChoice),
+		traineenode.WrapScribeAsTrainee(dataRootChoice))
+
+	choiceBits, refused, err := engineChoice.BidBits(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refused {
+		t.Fatal("Engine refused")
+	}
+	if choiceBits >= dataBits {
+		t.Fatal("bits didn't improve")
+	}
+
 }
 
 func Test_LeafRefuse(t *testing.T) {
-	data := []types.TData{1, 2, 3}
+	data := []types.TData{1}
 
-	metaDataRoot := enginenode.NewLeafRaw()
-	dataRoot := enginenode.NewLeafRefuse()
+	metaDataRoot := scribenode.WrapScribeAsBidderScribe(scribenode.NewLeafRefuse())
+	dataRoot := traineenode.WrapScribeAsTrainee(scribenode.NewLeafRefuse())
 	engine := engine2.NewNextGenEngine(metaDataRoot, dataRoot)
 
-	bidBits := engine.BidBits(data)
-	if bidBits != math.MaxUint64 {
-		t.Fatal("wrong bits bid")
+	_, refused, err := engine.BidBits(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !refused {
+		t.Fatal("Engine should haverefused")
 	}
 }

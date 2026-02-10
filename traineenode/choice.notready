@@ -1,0 +1,84 @@
+package traineenode
+
+import (
+	"github.com/KitchenMishap/pudding-codec/alphabets"
+	"github.com/KitchenMishap/pudding-codec/bitstream"
+	"github.com/KitchenMishap/pudding-codec/enginenode"
+	"github.com/KitchenMishap/pudding-codec/types"
+)
+
+/*
+// A node that codecs a choice between multiple representation schemes
+type OptionsNode struct {
+	choiceRepNode enginenode.IEngineNode
+	optionNodes   []enginenode.IEngineNode
+}
+
+// Check that implements
+var _ enginenode.IEngineNode = (*ChoiceRep)(nil)
+
+func Options(choiceRepNode enginenode.IEngineNode, optionNodes []enginenode.IEngineNode) *ChoiceRep {
+	result := ChoiceRep{}
+	result.
+	return &result
+}
+
+func (lr *ChoiceRep) BidBits(bases []BiddingBasis) types.TBitCount {
+	if len(bases) != 1 {
+		panic("ChoiceRep can only cope with one question")
+	}
+	// We will accumulate the number of bits we are bidding
+	bidBitsAccumulator := types.TBitCount(0)
+
+	// An alphabet of symbols to represent the choice
+	numChoices := len(lr.choiceNodes)
+	choicesAlphabet := alphabets.NewAlphabet(types.TCount(numChoices))
+
+	// Try each of the choice symbols
+	for _, choiceSymbol := range choicesAlphabet {
+		// We will accumulate the cost for the case that choiceSymbol is chosen
+		thisChoiceCostAccumulator := types.TBitCount(0)
+		// The first cost of this choice is the cost of selecting this choice.
+		// We will ask the chooserNode to bid how many bits it needs to represent this choice.
+		// It will need a basis for this bidding.
+		choiceBiddingBasis := BiddingBasis{}
+		choiceBiddingBasis.SymbolToRepresent = choiceSymbol
+		choiceBiddingBases.
+			ch
+
+		// We ask the chooser node to make a bid as a number of bits for this.
+		// The chooser node will need a basis on which to make this bid.
+		// This basis has two parts, (A) (the profile) The relative frequencies of the various
+		// symbols that could represent this choice, and (B) (the symbol) The symbol to
+		// represent
+		bidBasis
+		thisChoiceCost += lr.chooserNode.BidBits()
+		// The other cost of this choice is the choice's cost of representing the data
+	}
+	for _, symbol := range sequenceProfile[0] {
+		bitCount += 64 * symbol.Count
+	}
+	return bitCount
+}
+
+func (lr *ChoiceRep) Encode(sequence []types.TSymbol,
+	writer bitstream.IBitWriter) (didntKnowHow bool, err error) {
+	if len(sequence) != 1 {
+		panic("ChoiceRep can only cope with one")
+	}
+	for _, v := range sequence {
+		err := writer.WriteBits(v, 64)
+		if err != nil {
+			return false, err
+		}
+	}
+	return false, nil
+}
+
+func (lr *ChoiceRep) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
+	result := make([]types.TSymbol, 1)
+	var err error
+	result[0], err = reader.ReadBits(64)
+	return result, err
+}
+*/
