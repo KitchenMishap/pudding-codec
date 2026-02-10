@@ -44,6 +44,34 @@ func AlphabetProfileFromData(dataSet DataSet) (AlphabetProfile, Alphabet) {
 	return favourites, uniques
 }
 
+func AlphabetProfileFromSampleFirstSymbol(samples [][]types.TSymbol) (AlphabetProfile, Alphabet) {
+	counts := make(map[types.TData]types.TCount, 100)
+	for _, sequence := range samples {
+		if len(sequence) != 1 {
+			panic("can only cope with single symbol sequences")
+		}
+		counts[sequence[0]]++
+	}
+	// Turn map into an unsorted slice
+	favourites := make(AlphabetProfile, len(counts))
+	i := 0
+	for k, v := range counts {
+		favourites[i].Symbol = k
+		favourites[i].Count = v
+		i++
+	}
+	// Sort slice (biggest Count first)
+	sort.Slice(favourites, func(i, j int) bool {
+		return favourites[i].Count > favourites[j].Count
+	})
+	// Create list of unique values
+	uniques := make(Alphabet, len(favourites))
+	for i, v := range favourites {
+		uniques[i] = v.Symbol
+	}
+	return favourites, uniques
+}
+
 func NewAlphabet(symbolCount types.TCount) Alphabet {
 	result := make(Alphabet, symbolCount)
 	for i := range symbolCount {

@@ -64,6 +64,63 @@ func Test_LeafRefuse(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !refused {
-		t.Fatal("Engine should haverefused")
+		t.Fatal("Engine should have refused")
+	}
+}
+
+func Test_RawVersusTraineeChoiceScribe(t *testing.T) {
+	data := []types.TData{1, 2, 3, math.MaxUint32, 123456, 1, 2, 3, 123456}
+	dataBits := types.TBitCount(64 * len(data))
+
+	// Raw
+	metaDataRootRaw := compositeroots.NewRawScribe()
+	dataRootRaw := compositeroots.NewRawScribe()
+	engineRaw := engine2.NewNextGenEngine(
+		scribenode.WrapScribeAsBidderScribe(metaDataRootRaw),
+		traineenode.WrapScribeAsTrainee(dataRootRaw))
+
+	rawBits, refused, err := engineRaw.BidBits(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refused {
+		t.Fatal("Engine refused")
+	}
+	if rawBits != dataBits {
+		t.Fatal("wrong bits bid")
+	}
+
+	// Trainee Choice
+	metaDataRootChoice := compositeroots.NewChoiceScribe()
+	dataRootChoice := compositeroots.NewChoiceTrainee()
+	engineChoice := engine2.NewNextGenEngine(
+		scribenode.WrapScribeAsBidderScribe(metaDataRootChoice),
+		traineenode.WrapScribeAsTrainee(dataRootChoice))
+
+	untrainedBits, refused, err := engineChoice.BidBits(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refused {
+		t.Fatal("untrained engine refused")
+	}
+
+	err = engineChoice.DataNode.Observe(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = engineChoice.DataNode.Improve()
+	if err != nil {
+		t.Fatal(err)
+	}
+	trainedBits, refused, err := engineChoice.BidBits(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refused {
+		t.Fatal("trained engine refused")
+	}
+	if trainedBits > untrainedBits {
+		t.Fatal("bits got worse")
 	}
 }
