@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"github.com/KitchenMishap/pudding-codec/bitstream"
 	"github.com/KitchenMishap/pudding-codec/enginenode"
 	"github.com/KitchenMishap/pudding-codec/types"
 )
@@ -28,4 +29,53 @@ func (ng *NextGenEngine) BidBits(sequence []types.TSymbol) (bitCount types.TBitC
 		count += countBits
 	}
 	return count, false, nil
+}
+
+func (ng *NextGenEngine) Encode(sequence []types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error) {
+	// This metadata is the result of training
+	err = ng.DataNode.EncodeMyMetaData(writer)
+	if err != nil {
+		return false, err
+	}
+
+	// Encode the count as metadata
+	refused, err = ng.MetaDataNode.Encode([]types.TSymbol{types.TSymbol(len(sequence))}, writer)
+	if err != nil {
+		return false, err
+	}
+	if refused {
+		panic("metadata node refused to encode count")
+	}
+
+	for _, symbol := range sequence {
+		refused, err := ng.DataNode.Encode([]types.TSymbol{symbol}, writer)
+		if err != nil {
+			return false, err
+		}
+		if refused {
+			return true, nil
+		}
+	}
+	err = writer.FlushBits()
+	return false, err
+}
+
+func (ng *NextGenEngine) Decode(reader bitstream.IBitReader) (sequence []types.TSymbol, err error) {
+	// This metadata is the result of training
+	err = ng.DataNode.DecodeMyMetaData(reader)
+	if err != nil {
+		return []types.TSymbol{}, err
+	}
+
+	countSequence, err := ng.MetaDataNode.Decode(reader)
+
+	result := make([]types.TSymbol, int(countSequence[0]))
+	for i := range countSequence[0] {
+		sequence, err := ng.DataNode.Decode(reader)
+		result[i] = sequence[0]
+		if err != nil {
+			return []types.TData{}, err
+		}
+	}
+	return result, nil
 }

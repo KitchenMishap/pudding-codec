@@ -10,8 +10,8 @@ import (
 // reading/writing its own metadata
 type ITraineeNode interface {
 	scribenode.IBidderScribe
-	// Observe a message (sequence) for the purpose of future improvement
-	Observe(sequence []types.TSymbol) error
+	// Observe some messages (sequences) for the purpose of future improvement
+	Observe(sampleSequences [][]types.TSymbol) error
 	// Improve myself based on what I have observed
 	Improve() error
 	EncodeMyMetaData(writer bitstream.IBitWriter) error

@@ -18,7 +18,7 @@ func WrapScribeAsTrainee(scribe scribenode.IScribeNode) ITraineeNode {
 var _ ITraineeNode = (*TraineeWrapper)(nil)
 
 // A trainee wrapper doesn't do anything trainee-wise
-func (tw *TraineeWrapper) Observe(_ []types.TSymbol) error               { return nil }
+func (tw *TraineeWrapper) Observe(_ [][]types.TSymbol) error             { return nil }
 func (tw *TraineeWrapper) Improve() error                                { return nil }
 func (tw *TraineeWrapper) EncodeMyMetaData(_ bitstream.IBitWriter) error { return nil }
 func (tw *TraineeWrapper) DecodeMyMetaData(_ bitstream.IBitReader) error { return nil }

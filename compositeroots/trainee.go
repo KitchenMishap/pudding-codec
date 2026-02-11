@@ -16,3 +16,9 @@ func NewChoiceTrainee() scribenode.IScribeNode {
 	choiceNode := traineenode.NewChoiceTwo(switchPositionNode, optionNodes)
 	return choiceNode
 }
+
+func NewShannonFanoTrainee() traineenode.ITraineeNode {
+	switchPositionNode := scribenode.NewFixedBits(1)
+	choiceNode := traineenode.NewRecursiveShannonFano(switchPositionNode)
+	return choiceNode
+}
