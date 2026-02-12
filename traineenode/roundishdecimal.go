@@ -20,14 +20,14 @@ func NewRoundishDecimal(leadingZerosNode ITraineeNode, metaDigitNode ITraineeNod
 	return &result
 }
 
-func (rd *RoundishDecimal) Encode(sequence []types.TData, writer bitstream.IBitWriter) (refused bool, err error) {
-	if len(sequence) != 1 {
-		panic("need sequence length to be one")
+func (rd *RoundishDecimal) Encode(value types.TData, writer bitstream.IBitWriter) (refused bool, err error) {
+	symbolSequence := RoundishNumberRepresentation(value)
+	if len(symbolSequence) < 1 {
+		panic("not enough symbols in sequence")
 	}
-	symbolSequence := RoundishNumberRepresentation(sequence[0])
 
 	leadingZerosSymbol := symbolSequence[0]
-	refused, err = rd.leadingZerosNode.Encode([]types.TSymbol{leadingZerosSymbol}, writer)
+	refused, err = rd.leadingZerosNode.Encode(leadingZerosSymbol, writer)
 	if err != nil {
 		return false, err
 	}
@@ -36,7 +36,7 @@ func (rd *RoundishDecimal) Encode(sequence []types.TData, writer bitstream.IBitW
 	}
 
 	for _, metaDigitSymbol := range symbolSequence[1:] {
-		refused, err = rd.metaDigitNode.Encode([]types.TSymbol{metaDigitSymbol}, writer)
+		refused, err = rd.metaDigitNode.Encode(metaDigitSymbol, writer)
 		if err != nil {
 			return false, err
 		}
@@ -79,17 +79,16 @@ func (rd *RoundishDecimal) Decode(reader bitstream.IBitReader) ([]types.TSymbol,
 	return []types.TData{total}, nil
 }
 
-func (rd *RoundishDecimal) BidBits(sequence []types.TSymbol) (bitCount types.TBitCount, refused bool, err error) {
-	if len(sequence) != 1 {
-		panic("need sequence length to be one")
-	}
-
+func (rd *RoundishDecimal) BidBits(value types.TSymbol) (bitCount types.TBitCount, refused bool, err error) {
 	bitCount = types.TBitCount(0)
 
-	symbolSequence := RoundishNumberRepresentation(sequence[0])
+	symbolSequence := RoundishNumberRepresentation(value)
+	if len(symbolSequence) < 1 {
+		panic("not enough symbols in sequence")
+	}
 
 	leadingZerosSymbol := symbolSequence[0]
-	subCount, refused, err := rd.leadingZerosNode.BidBits([]types.TSymbol{leadingZerosSymbol})
+	subCount, refused, err := rd.leadingZerosNode.BidBits(leadingZerosSymbol)
 	if err != nil {
 		return 0, false, err
 	}
@@ -99,7 +98,7 @@ func (rd *RoundishDecimal) BidBits(sequence []types.TSymbol) (bitCount types.TBi
 	bitCount += subCount
 
 	for _, metaDigitSymbol := range symbolSequence[1:] {
-		subCount, refused, err = rd.metaDigitNode.BidBits([]types.TSymbol{metaDigitSymbol})
+		subCount, refused, err = rd.metaDigitNode.BidBits(metaDigitSymbol)
 		if err != nil {
 			return 0, false, err
 		}

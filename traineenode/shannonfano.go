@@ -135,22 +135,22 @@ func (ct *ShannonFano) DecodeMyMetaData(reader bitstream.IBitReader) error {
 	return nil
 }
 
-func (ct *ShannonFano) chooseBestOption(sequence []types.TSymbol) (
+func (ct *ShannonFano) chooseBestOption(symbol types.TSymbol) (
 	switchSymbol types.TSymbol, refused bool, err error) {
 	// Assess
-	cost0, refuse0, err := ct.optionNodes[0].BidBits(sequence)
+	cost0, refuse0, err := ct.optionNodes[0].BidBits(symbol)
 	if err != nil {
-		return types.TSymbol(0), false, err
+		return 0, false, err
 	}
-	cost1, refuse1, err := ct.optionNodes[1].BidBits(sequence)
+	cost1, refuse1, err := ct.optionNodes[1].BidBits(symbol)
 	if err != nil {
-		return types.TSymbol(0), false, err
+		return 0, false, err
 	}
 
 	// Choose
 	// If both choices refused, WE refuse
 	if refuse0 && refuse1 {
-		return types.TSymbol(0), true, nil
+		return 0, true, nil
 	}
 	switchSymbol = types.TSymbol(0)
 	if refuse0 || cost1 < cost0 {
@@ -168,7 +168,7 @@ func (ct *ShannonFano) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 		// Use a type switch or assertion to see what the child is
 		if child, ok := ct.optionNodes[i].(*ShannonFano); ok {
 			// 1. Write the "Branch" flag
-			refused, err := typeScribe.Encode([]types.TSymbol{1}, writer)
+			refused, err := typeScribe.Encode(1, writer)
 			if err != nil {
 				return err
 			}
@@ -182,7 +182,7 @@ func (ct *ShannonFano) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 			}
 		} else if leaf, ok := ct.optionNodes[i].(*scribenode.LiteralScribe); ok {
 			// 1. Write the "Leaf" flag
-			refused, err := typeScribe.Encode([]types.TSymbol{0}, writer)
+			refused, err := typeScribe.Encode(0, writer)
 			if err != nil {
 				return err
 			}
@@ -190,7 +190,7 @@ func (ct *ShannonFano) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 				panic("refused to write the leaf flag")
 			}
 			// 2. Write the symbol (You'll need GetSymbol() on LiteralScribe)
-			refused, err = dataScribe.Encode([]types.TSymbol{leaf.GetSymbol()}, writer)
+			refused, err = dataScribe.Encode(leaf.GetSymbol(), writer)
 			if err != nil {
 				return err
 			}
@@ -202,17 +202,13 @@ func (ct *ShannonFano) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 	return nil
 }
 
-func (ct *ShannonFano) Encode(sequence []types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error) {
-	if len(sequence) != 1 {
-		panic("can only cope with sequences of length one")
-	}
-
+func (ct *ShannonFano) Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error) {
 	var switchSymbol types.TSymbol
 	// If we have learned anything...
 	if ct.switchSymbolFromSequence != nil {
-		switchSymbol = ct.switchSymbolFromSequence[sequence[0]]
+		switchSymbol = ct.switchSymbolFromSequence[symbol]
 	} else {
-		switchSymbol, refused, err = ct.chooseBestOption(sequence)
+		switchSymbol, refused, err = ct.chooseBestOption(symbol)
 		if err != nil {
 			return false, err
 		}
@@ -222,8 +218,7 @@ func (ct *ShannonFano) Encode(sequence []types.TSymbol, writer bitstream.IBitWri
 	}
 
 	// Encode switch
-	switchSequence := []types.TSymbol{switchSymbol} // Sequence of 1 symbol
-	refused, err = ct.switchNode.Encode(switchSequence, writer)
+	refused, err = ct.switchNode.Encode(switchSymbol, writer)
 	if err != nil {
 		return false, err
 	}
@@ -231,8 +226,8 @@ func (ct *ShannonFano) Encode(sequence []types.TSymbol, writer bitstream.IBitWri
 		panic("ShannonFano: switch refused to encode")
 	}
 
-	// Encode sequence
-	refused, err = ct.optionNodes[switchSymbol].Encode(sequence, writer)
+	// Encode symbol
+	refused, err = ct.optionNodes[switchSymbol].Encode(symbol, writer)
 	if err != nil {
 		return false, err
 	}
@@ -257,21 +252,17 @@ func (ct *ShannonFano) Decode(reader bitstream.IBitReader) ([]types.TSymbol, err
 	return ct.optionNodes[switchSymbol].Decode(reader)
 }
 
-func (ct *ShannonFano) BidBits(sequence []types.TSymbol) (types.TBitCount, bool, error) {
-	if len(sequence) != 1 {
-		panic("ShannonFano bidder only supports single symbols")
-	}
-
+func (ct *ShannonFano) BidBits(symbol types.TSymbol) (types.TBitCount, bool, error) {
 	// 1. Determine which branch this symbol belongs to
 	// (We use our learned mapping for speed)
-	switchSymbol, exists := ct.switchSymbolFromSequence[sequence[0]]
+	switchSymbol, exists := ct.switchSymbolFromSequence[symbol]
 	if !exists {
 		// If we haven't learned this symbol, we can't bid on it
 		return 0, true, nil
 	}
 
 	// 2. Ask that specific child for its bit cost
-	childCost, refused, err := ct.optionNodes[switchSymbol].BidBits(sequence)
+	childCost, refused, err := ct.optionNodes[switchSymbol].BidBits(symbol)
 	if err != nil || refused {
 		return 0, refused, err
 	}

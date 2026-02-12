@@ -14,13 +14,13 @@ func NewChoiceTwo(switchNode IScribeNode, optionNodes [2]IBidderScribe) *ChoiceT
 	return &ChoiceTwo{switchNode, optionNodes}
 }
 
-func (ct *ChoiceTwo) Encode(sequence []types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error) {
+func (ct *ChoiceTwo) Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error) {
 	// Assess
-	cost0, refuse0, err := ct.optionNodes[0].BidBits(sequence)
+	cost0, refuse0, err := ct.optionNodes[0].BidBits(symbol)
 	if err != nil {
 		return false, err
 	}
-	cost1, refuse1, err := ct.optionNodes[1].BidBits(sequence)
+	cost1, refuse1, err := ct.optionNodes[1].BidBits(symbol)
 	if err != nil {
 		return false, err
 	}
@@ -36,8 +36,7 @@ func (ct *ChoiceTwo) Encode(sequence []types.TSymbol, writer bitstream.IBitWrite
 	}
 
 	// Encode switch
-	switchSequence := []types.TSymbol{switchSymbol} // Sequence of 1 symbol
-	refused, err = ct.switchNode.Encode(switchSequence, writer)
+	refused, err = ct.switchNode.Encode(switchSymbol, writer)
 	if err != nil {
 		return false, err
 	}
@@ -46,7 +45,7 @@ func (ct *ChoiceTwo) Encode(sequence []types.TSymbol, writer bitstream.IBitWrite
 	}
 
 	// Encode sequence
-	refused, err = ct.optionNodes[switchSymbol].Encode(sequence, writer)
+	refused, err = ct.optionNodes[switchSymbol].Encode(symbol, writer)
 	if err != nil {
 		return false, err
 	}

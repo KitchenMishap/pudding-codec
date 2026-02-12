@@ -20,19 +20,14 @@ func NewFixedBits(n types.TBitCount) *FixedBits {
 	return &result
 }
 
-func (fb *FixedBits) Encode(sequence []types.TSymbol,
+func (fb *FixedBits) Encode(symbol types.TSymbol,
 	writer bitstream.IBitWriter) (refused bool, err error) {
-	// This is because FixedBits does not encode a count
-	if len(sequence) != 1 {
-		panic("FixedBits can only do one at a time")
-	}
 
-	input := sequence[0]
-	if bits.Len64(input) > int(fb.n) {
+	if bits.Len64(symbol) > int(fb.n) {
 		return true, nil
 	}
 
-	err = writer.WriteBits(input, int(fb.n))
+	err = writer.WriteBits(symbol, int(fb.n))
 	if err != nil {
 		return false, err
 	}

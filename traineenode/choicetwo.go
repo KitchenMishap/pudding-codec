@@ -51,7 +51,7 @@ func (ct *ChoiceTwo) Improve() error {
 		// Just this once, decide on the appropriate switch symbol to use
 		// (the one representing the cheapest of the bids offered
 		// by the options for this symbol)
-		switchSymbol, refused, err := ct.chooseBestOption([]types.TSymbol{symbol})
+		switchSymbol, refused, err := ct.chooseBestOption(symbol)
 		if err != nil {
 			return err
 		}
@@ -66,17 +66,13 @@ func (ct *ChoiceTwo) Improve() error {
 	return nil
 }
 
-func (ct *ChoiceTwo) Encode(sequence []types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error) {
-	if len(sequence) != 1 {
-		panic("can only cope with sequences of length one")
-	}
-
+func (ct *ChoiceTwo) Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error) {
 	var switchSymbol types.TSymbol
 	// If we have learned anything...
 	if ct.switchSymbolFromSequence != nil {
-		switchSymbol = ct.switchSymbolFromSequence[sequence[0]]
+		switchSymbol = ct.switchSymbolFromSequence[symbol]
 	} else {
-		switchSymbol, refused, err = ct.chooseBestOption(sequence)
+		switchSymbol, refused, err = ct.chooseBestOption(symbol)
 		if err != nil {
 			return false, err
 		}
@@ -86,8 +82,7 @@ func (ct *ChoiceTwo) Encode(sequence []types.TSymbol, writer bitstream.IBitWrite
 	}
 
 	// Encode switch
-	switchSequence := []types.TSymbol{switchSymbol} // Sequence of 1 symbol
-	refused, err = ct.switchNode.Encode(switchSequence, writer)
+	refused, err = ct.switchNode.Encode(switchSymbol, writer)
 	if err != nil {
 		return false, err
 	}
@@ -95,8 +90,8 @@ func (ct *ChoiceTwo) Encode(sequence []types.TSymbol, writer bitstream.IBitWrite
 		panic("ChoiceTwo: switch refused to encode")
 	}
 
-	// Encode sequence
-	refused, err = ct.optionNodes[switchSymbol].Encode(sequence, writer)
+	// Encode symbol
+	refused, err = ct.optionNodes[switchSymbol].Encode(symbol, writer)
 	if err != nil {
 		return false, err
 	}
@@ -121,14 +116,14 @@ func (ct *ChoiceTwo) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error
 	return ct.optionNodes[switchSymbol].Decode(reader)
 }
 
-func (ct *ChoiceTwo) chooseBestOption(sequence []types.TSymbol) (
+func (ct *ChoiceTwo) chooseBestOption(symbol types.TSymbol) (
 	switchSymbol types.TSymbol, refused bool, err error) {
 	// Assess
-	cost0, refuse0, err := ct.optionNodes[0].BidBits(sequence)
+	cost0, refuse0, err := ct.optionNodes[0].BidBits(symbol)
 	if err != nil {
 		return types.TSymbol(0), false, err
 	}
-	cost1, refuse1, err := ct.optionNodes[1].BidBits(sequence)
+	cost1, refuse1, err := ct.optionNodes[1].BidBits(symbol)
 	if err != nil {
 		return types.TSymbol(0), false, err
 	}
@@ -136,7 +131,7 @@ func (ct *ChoiceTwo) chooseBestOption(sequence []types.TSymbol) (
 	// Choose
 	// If both choices refused, WE refuse
 	if refuse0 && refuse1 {
-		return types.TSymbol(0), true, nil
+		return 0, true, nil
 	}
 	switchSymbol = types.TSymbol(0)
 	if refuse0 || cost1 < cost0 {
@@ -153,7 +148,7 @@ const dataBits = 64
 func (ct *ChoiceTwo) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 	switchScribe := scribenode.NewFixedBits(switchBits)
 	dataScribe := scribenode.NewFixedBits(dataBits)
-	refused, err := dataScribe.Encode([]types.TSymbol{types.TSymbol(len(ct.switchSymbolFromSequence))}, writer)
+	refused, err := dataScribe.Encode(types.TSymbol(len(ct.switchSymbolFromSequence)), writer)
 	if err != nil {
 		return err
 	}
@@ -161,14 +156,14 @@ func (ct *ChoiceTwo) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 		panic("scribe refused to encode ChoiceTwo count metadata")
 	}
 	for dataSymbol, switchSymbol := range ct.switchSymbolFromSequence {
-		refused, err = dataScribe.Encode([]types.TSymbol{dataSymbol}, writer)
+		refused, err = dataScribe.Encode(dataSymbol, writer)
 		if err != nil {
 			return err
 		}
 		if refused {
 			panic("scribe refused to encode ChoiceTwo data metadata")
 		}
-		refused, err = switchScribe.Encode([]types.TSymbol{switchSymbol}, writer)
+		refused, err = switchScribe.Encode(switchSymbol, writer)
 		if err != nil {
 			return err
 		}

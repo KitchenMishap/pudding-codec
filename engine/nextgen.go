@@ -19,7 +19,7 @@ func NewNextGenEngine(metaDataNode enginenode.IMetaDataNode, dataNode enginenode
 func (ng *NextGenEngine) BidBits(sequence []types.TSymbol) (bitCount types.TBitCount, refused bool, err error) {
 	count := types.TBitCount(0)
 	for _, symbol := range sequence {
-		countBits, refused, err := ng.DataNode.BidBits([]types.TSymbol{symbol})
+		countBits, refused, err := ng.DataNode.BidBits(symbol)
 		if err != nil {
 			return 0, false, err
 		}
@@ -39,7 +39,7 @@ func (ng *NextGenEngine) Encode(sequence []types.TSymbol, writer bitstream.IBitW
 	}
 
 	// Encode the count as metadata
-	refused, err = ng.MetaDataNode.Encode([]types.TSymbol{types.TSymbol(len(sequence))}, writer)
+	refused, err = ng.MetaDataNode.Encode(types.TSymbol(len(sequence)), writer)
 	if err != nil {
 		return false, err
 	}
@@ -48,7 +48,7 @@ func (ng *NextGenEngine) Encode(sequence []types.TSymbol, writer bitstream.IBitW
 	}
 
 	for _, symbol := range sequence {
-		refused, err := ng.DataNode.Encode([]types.TSymbol{symbol}, writer)
+		refused, err := ng.DataNode.Encode(symbol, writer)
 		if err != nil {
 			return false, err
 		}

@@ -17,7 +17,7 @@ func NewLeafRefuse() *LeafRefuse {
 	return &result
 }
 
-func (lr *LeafRefuse) Encode(_ []types.TSymbol,
+func (lr *LeafRefuse) Encode(_ types.TSymbol,
 	_ bitstream.IBitWriter) (refuse bool, err error) {
 	return true, nil
 }

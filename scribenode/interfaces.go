@@ -9,7 +9,7 @@ import (
 // to learn, and writes no metadata. It is therefore good for writing
 // the metadata from engine nodes at a predictable cost
 type IScribeNode interface {
-	Encode(sequence []types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error)
+	Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error)
 	Decode(reader bitstream.IBitReader) ([]types.TSymbol, error)
 }
 
@@ -17,7 +17,7 @@ type IScribeNode interface {
 // (A "quick and easy" way to knock up a bidder node is to wrap
 // an an IScribeNode in an BidderWrapper)
 type IBidderNode interface {
-	BidBits(sequence []types.TSymbol) (bitcount types.TBitCount, refuse bool, err error)
+	BidBits(symbol types.TSymbol) (bitcount types.TBitCount, refuse bool, err error)
 }
 
 type IBidderScribe interface {
