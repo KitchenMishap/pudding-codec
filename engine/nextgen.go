@@ -72,10 +72,10 @@ func (ng *NextGenEngine) Decode(reader bitstream.IBitReader) (sequence []types.T
 	result := make([]types.TSymbol, int(countSequence[0]))
 	for i := range countSequence[0] {
 		sequence, err := ng.DataNode.Decode(reader)
-		result[i] = sequence[0]
 		if err != nil {
-			return []types.TData{}, err
+			return nil, err
 		}
+		result[i] = sequence[0]
 	}
 	return result, nil
 }

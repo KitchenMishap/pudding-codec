@@ -22,3 +22,10 @@ func NewShannonFanoTrainee() traineenode.ITraineeNode {
 	choiceNode := traineenode.NewRecursiveShannonFano(switchPositionNode)
 	return choiceNode
 }
+
+func NewRoundDecimalTrainee() traineenode.ITraineeNode {
+	leadingZerosNode := NewShannonFanoTrainee()
+	metaDigitsNode := NewShannonFanoTrainee()
+	roundNode := traineenode.NewRoundishDecimal(leadingZerosNode, metaDigitsNode)
+	return roundNode
+}

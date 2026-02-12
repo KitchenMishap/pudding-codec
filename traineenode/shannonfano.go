@@ -15,8 +15,7 @@ type ShannonFano struct {
 	factory ShannonFanoFactory // The builder for recursive children
 
 	// Observations
-	alphabet        alphabets.Alphabet        // The symbols we've seen
-	alphabetProfile alphabets.AlphabetProfile // How often each was seen
+	alphabetCounts *alphabets.AlphabetCount // The symbols we've observed
 
 	// Metadata (the thing that is learned from observations)
 	switchSymbolFromSequence  map[types.TSymbol]types.TSymbol // Indexed by a single-symbol sequence
@@ -29,7 +28,7 @@ var _ ITraineeNode = (*ShannonFano)(nil)
 type ShannonFanoFactory func() *ShannonFano
 
 func NewRecursiveShannonFano(switchNode scribenode.IScribeNode) *ShannonFano {
-	var ct *ShannonFano
+	var sf *ShannonFano
 
 	// The factory is a closure that knows how to make "more of me"
 	factory := func() *ShannonFano {
@@ -39,26 +38,29 @@ func NewRecursiveShannonFano(switchNode scribenode.IScribeNode) *ShannonFano {
 		return NewRecursiveShannonFano(newSwitch)
 	}
 
-	ct = &ShannonFano{
-		switchNode: switchNode,
-		factory:    factory,
+	sf = &ShannonFano{
+		switchNode:     switchNode,
+		factory:        factory,
+		alphabetCounts: alphabets.NewAlphabetCount(10),
 	}
-	return ct
+	return sf
 }
 
-func (ct *ShannonFano) Observe(sampleSequences [][]types.TSymbol) error {
-	ct.alphabetProfile, ct.alphabet =
-		alphabets.AlphabetProfileFromData(
-			sequences.SliceOfSingleSymbolsFromSampleOfSequences(sampleSequences))
+func (sf *ShannonFano) Observe(sampleSequences [][]types.TSymbol) error {
+	sf.alphabetCounts.AddData(
+		sequences.SliceOfSingleSymbolsFromSampleOfSequences(sampleSequences))
 	return nil
 }
 
-func (ct *ShannonFano) Improve() error {
-	if len(ct.alphabetProfile) == 0 {
+func (sf *ShannonFano) Improve() error {
+	if sf.alphabetCounts.Size() == 0 {
 		return nil
 	}
+	alphabetProfile, _ := sf.alphabetCounts.MakeAlphabetProfile()
 	// All we need to do is kick off the recursion
-	return ct.ImproveRecursive(ct.alphabetProfile)
+	err := sf.ImproveRecursive(alphabetProfile)
+	sf.alphabetCounts.Reset() // Clear observations
+	return err
 }
 
 func (ct *ShannonFano) ImproveRecursive(profile alphabets.AlphabetProfile) error {

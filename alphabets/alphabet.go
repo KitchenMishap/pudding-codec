@@ -19,6 +19,51 @@ type Alphabet = []types.TSymbol
 // Each element can be from a DIFFERENT Alphabet (implied by context)
 type Sentence = []types.TSymbol
 
+type AlphabetCount struct {
+	capGuess int
+	counts   map[types.TSymbol]types.TCount
+}
+
+func NewAlphabetCount(sizeGuess int) *AlphabetCount {
+	result := AlphabetCount{}
+	result.capGuess = sizeGuess
+	result.counts = make(map[types.TSymbol]types.TCount, sizeGuess)
+	return &result
+}
+
+func (ac *AlphabetCount) AddData(dataSet DataSet) {
+	for _, v := range dataSet {
+		ac.counts[v]++
+	}
+}
+
+func (ac *AlphabetCount) Size() int { return len(ac.counts) }
+
+func (ac *AlphabetCount) Reset() {
+	ac.counts = make(map[types.TSymbol]types.TCount, ac.capGuess)
+}
+
+func (ac *AlphabetCount) MakeAlphabetProfile() (AlphabetProfile, Alphabet) {
+	// Turn map into an unsorted slice
+	favourites := make(AlphabetProfile, len(ac.counts))
+	i := 0
+	for k, v := range ac.counts {
+		favourites[i].Symbol = k
+		favourites[i].Count = v
+		i++
+	}
+	// Sort slice (biggest Count first)
+	sort.Slice(favourites, func(i, j int) bool {
+		return favourites[i].Count > favourites[j].Count
+	})
+	// Create list of unique values
+	uniques := make(Alphabet, len(favourites))
+	for i, v := range favourites {
+		uniques[i] = v.Symbol
+	}
+	return favourites, uniques
+}
+
 func AlphabetProfileFromData(dataSet DataSet) (AlphabetProfile, Alphabet) {
 	counts := make(map[types.TData]types.TCount, 1000)
 	for _, v := range dataSet {
@@ -70,12 +115,4 @@ func AlphabetProfileFromSampleFirstSymbol(samples [][]types.TSymbol) (AlphabetPr
 		uniques[i] = v.Symbol
 	}
 	return favourites, uniques
-}
-
-func NewAlphabet(symbolCount types.TCount) Alphabet {
-	result := make(Alphabet, symbolCount)
-	for i := range symbolCount {
-		result[i] = types.TSymbol(i)
-	}
-	return result
 }
