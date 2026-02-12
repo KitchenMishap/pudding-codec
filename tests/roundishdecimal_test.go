@@ -68,8 +68,22 @@ func Test_RawVersusRoundedDecimal(t *testing.T) {
 	}
 }
 
+func Test_RoundObserveZeroTest(t *testing.T) {
+	metaDataRootRound := compositeroots.NewRawScribe()
+	dataRootRound := compositeroots.NewRoundDecimalTrainee()
+	engineRound := engine2.NewNextGenEngine(
+		scribenode.WrapScribeAsBidderScribe(metaDataRootRound),
+		dataRootRound)
+
+	err := engineRound.DataNode.Observe(
+		sequences.SingleSymbolDataToSampleOfSequences([]types.TData{0}))
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func Test_RoundEncodeDecode(t *testing.T) {
-	data := []types.TData{1, 2, 3, math.MaxUint32, 123456, 1, 2, 3, 123456}
+	data := []types.TData{1, 2, 3, 0, math.MaxUint32, 123456, 1, 2, 3, 123456}
 
 	metaDataRootRound := compositeroots.NewRawScribe()
 	dataRootRound := compositeroots.NewRoundDecimalTrainee()

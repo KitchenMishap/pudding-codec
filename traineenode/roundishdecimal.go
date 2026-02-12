@@ -118,6 +118,9 @@ func (rd *RoundishDecimal) Observe(sampleSequences [][]types.TSymbol) error {
 			panic("need sequence length to be one")
 		}
 		symbolSequence := RoundishNumberRepresentation(sequence[0])
+		if len(symbolSequence) < 1 {
+			panic("too few symbols")
+		}
 
 		leadingZerosSymbol := symbolSequence[0]
 		leadingZerosSlice := []types.TSymbol{leadingZerosSymbol}
@@ -184,7 +187,7 @@ func RoundishNumberRepresentation(number types.TData) []types.TSymbol {
 	doingLeadingZeros := true
 	scraps := number
 	scrapsDigitCount := digits
-	for scraps > 0 {
+	for scraps > 0 || doingLeadingZeros {
 		var repeatingDigit, repeatCount int
 		repeatingDigit, repeatCount, scraps, scrapsDigitCount, powerOf10 = EatLeadingRepeatingDigit(scraps, scrapsDigitCount, powerOf10)
 		if doingLeadingZeros {
@@ -293,7 +296,7 @@ func Symbols(digit int, repeatCount int) []types.TSymbol {
 func EatLeadingRepeatingDigit(inputNumber types.TData, digitCount int, digitsPow10 types.TData) (
 	repeatingDigit int, repeatCount int, scraps types.TData, scrapsDigitCount int, remainingDigitsPow10 types.TData) {
 	if inputNumber == 0 {
-		return digitCount, 0, 0, 0, 0 // Number was all zeroes
+		return 0, digitCount, 0, 0, 0 // Number was all zeroes
 	}
 
 	// Scraps counts down from the original number
