@@ -32,8 +32,8 @@ func (ls *LiteralScribe) Encode(symbol types.TSymbol, _ bitstream.IBitWriter) (b
 	return true, nil // Refused
 }
 
-func (ls *LiteralScribe) Decode(_ bitstream.IBitReader) ([]types.TSymbol, error) {
-	return []types.TSymbol{ls.symbol}, nil
+func (ls *LiteralScribe) Decode(_ bitstream.IBitReader) (types.TSymbol, error) {
+	return ls.symbol, nil
 }
 
 func (ls *LiteralScribe) GetSymbol() types.TSymbol { return ls.symbol }

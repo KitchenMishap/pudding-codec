@@ -108,11 +108,11 @@ func (ct *ShannonFano) DecodeMyMetaData(reader bitstream.IBitReader) error {
 
 	for i := 0; i < 2; i++ {
 		// 1. Read the "Control Bit" (Branch vs Leaf)
-		typeSequence, err := typeScribe.Decode(reader)
+		typeSymbol, err := typeScribe.Decode(reader)
 		if err != nil {
 			return err
 		}
-		isBranch := typeSequence[0] == 1
+		isBranch := typeSymbol == 1
 
 		if isBranch {
 			// 2. It's a branch! Spawn a child and recurse
@@ -124,11 +124,10 @@ func (ct *ShannonFano) DecodeMyMetaData(reader bitstream.IBitReader) error {
 			ct.optionNodes[i] = child
 		} else {
 			// 3. It's a leaf! Read the symbol and create a LiteralScribe
-			symbolSequence, err := dataScribe.Decode(reader)
+			symbol, err := dataScribe.Decode(reader)
 			if err != nil {
 				return err
 			}
-			symbol := symbolSequence[0]
 			ct.optionNodes[i] = scribenode.NewLiteralScribe(symbol)
 		}
 	}
@@ -238,17 +237,12 @@ func (ct *ShannonFano) Encode(symbol types.TSymbol, writer bitstream.IBitWriter)
 	return false, nil
 }
 
-func (ct *ShannonFano) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
+func (ct *ShannonFano) Decode(reader bitstream.IBitReader) (types.TSymbol, error) {
 	// Read the switch
-	switchSequence, err := ct.switchNode.Decode(reader)
+	switchSymbol, err := ct.switchNode.Decode(reader)
 	if err != nil {
-		return []types.TSymbol{}, err
+		return 0, err
 	}
-	if len(switchSequence) != 1 {
-		panic("wasn't expecting multiple switch settings")
-	}
-	switchSymbol := switchSequence[0]
-
 	return ct.optionNodes[switchSymbol].Decode(reader)
 }
 

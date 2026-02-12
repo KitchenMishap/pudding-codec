@@ -46,24 +46,22 @@ func (rd *RoundishDecimal) Encode(value types.TData, writer bitstream.IBitWriter
 	}
 	return false, nil
 }
-func (rd *RoundishDecimal) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
+func (rd *RoundishDecimal) Decode(reader bitstream.IBitReader) (types.TSymbol, error) {
 	// First decode the leading zeros count
-	symbolSequence, err := rd.leadingZerosNode.Decode(reader)
+	leadingZerosSymbol, err := rd.leadingZerosNode.Decode(reader)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	leadingZerosSymbol := symbolSequence[0]
 	leadingZerosCount := LeadingZerosFrom(leadingZerosSymbol)
 
 	// Start with an empty slice of meta digits
 	metaDigits := make([]MetaDigit, 0, 10)
 	for NeedAnotherMetaDigit(leadingZerosCount, metaDigits) {
 		// Decode another meta digit
-		metaDigitSequence, err := rd.metaDigitNode.Decode(reader)
+		metaDigitSymbol, err := rd.metaDigitNode.Decode(reader)
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
-		metaDigitSymbol := metaDigitSequence[0]
 		metaDigits = append(metaDigits, RepeatingDigitFrom(metaDigitSymbol))
 	}
 	// Reconstruct the number, starting at the least significant digit
@@ -76,7 +74,7 @@ func (rd *RoundishDecimal) Decode(reader bitstream.IBitReader) ([]types.TSymbol,
 			powTen *= 10
 		}
 	}
-	return []types.TData{total}, nil
+	return total, nil
 }
 
 func (rd *RoundishDecimal) BidBits(value types.TSymbol) (bitCount types.TBitCount, refused bool, err error) {

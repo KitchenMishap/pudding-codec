@@ -10,7 +10,7 @@ import (
 // the metadata from engine nodes at a predictable cost
 type IScribeNode interface {
 	Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (refused bool, err error)
-	Decode(reader bitstream.IBitReader) ([]types.TSymbol, error)
+	Decode(reader bitstream.IBitReader) (types.TSymbol, error)
 }
 
 // IBidderNode is a node which can tell you how short it will encode a message.

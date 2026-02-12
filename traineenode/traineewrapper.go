@@ -26,7 +26,7 @@ func (tw *TraineeWrapper) Encode(symbol types.TSymbol,
 	writer bitstream.IBitWriter) (bool, error) {
 	return tw.bidder.Encode(symbol, writer)
 }
-func (tw *TraineeWrapper) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
+func (tw *TraineeWrapper) Decode(reader bitstream.IBitReader) (types.TSymbol, error) {
 	return tw.bidder.Decode(reader)
 }
 func (tw *TraineeWrapper) BidBits(symbol types.TSymbol) (types.TBitCount, bool, error) {

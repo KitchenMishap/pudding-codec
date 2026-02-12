@@ -35,9 +35,7 @@ func (fb *FixedBits) Encode(symbol types.TSymbol,
 	return false, nil
 }
 
-func (fb *FixedBits) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
-	result := make([]types.TSymbol, 1)
-	var err error
-	result[0], err = reader.ReadBits(int(fb.n))
+func (fb *FixedBits) Decode(reader bitstream.IBitReader) (types.TSymbol, error) {
+	result, err := reader.ReadBits(int(fb.n))
 	return result, err
 }

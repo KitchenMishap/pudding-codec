@@ -22,6 +22,6 @@ func (lr *LeafRefuse) Encode(_ types.TSymbol,
 	return true, nil
 }
 
-func (lr *LeafRefuse) Decode(_ bitstream.IBitReader) ([]types.TSymbol, error) {
-	return []types.TSymbol{}, nil
+func (lr *LeafRefuse) Decode(_ bitstream.IBitReader) (types.TSymbol, error) {
+	return 0, nil
 }

@@ -64,18 +64,20 @@ func (ng *NextGenEngine) Decode(reader bitstream.IBitReader) (sequence []types.T
 	// This metadata is the result of training
 	err = ng.DataNode.DecodeMyMetaData(reader)
 	if err != nil {
-		return []types.TSymbol{}, err
+		return nil, err
 	}
 
-	countSequence, err := ng.MetaDataNode.Decode(reader)
-
-	result := make([]types.TSymbol, int(countSequence[0]))
-	for i := range countSequence[0] {
-		sequence, err := ng.DataNode.Decode(reader)
+	count, err := ng.MetaDataNode.Decode(reader)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]types.TSymbol, int(count))
+	for i := range count {
+		symbol, err := ng.DataNode.Decode(reader)
 		if err != nil {
 			return nil, err
 		}
-		result[i] = sequence[0]
+		result[i] = symbol
 	}
 	return result, nil
 }

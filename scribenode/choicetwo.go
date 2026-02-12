@@ -56,12 +56,11 @@ func (ct *ChoiceTwo) Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (
 	return false, nil
 }
 
-func (ct *ChoiceTwo) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
+func (ct *ChoiceTwo) Decode(reader bitstream.IBitReader) (types.TSymbol, error) {
 	// Read the switch
-	switchSequence, err := ct.switchNode.Decode(reader)
+	switchSymbol, err := ct.switchNode.Decode(reader)
 	if err != nil {
-		return []types.TSymbol{}, err
+		return 0, err
 	}
-
-	return ct.optionNodes[switchSequence[0]].Decode(reader)
+	return ct.optionNodes[switchSymbol].Decode(reader)
 }

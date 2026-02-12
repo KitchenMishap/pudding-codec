@@ -102,17 +102,12 @@ func (ct *ChoiceTwo) Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (
 	return false, nil
 }
 
-func (ct *ChoiceTwo) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
+func (ct *ChoiceTwo) Decode(reader bitstream.IBitReader) (types.TSymbol, error) {
 	// Read the switch
-	switchSequence, err := ct.switchNode.Decode(reader)
+	switchSymbol, err := ct.switchNode.Decode(reader)
 	if err != nil {
-		return []types.TSymbol{}, err
+		return 0, err
 	}
-	if len(switchSequence) != 1 {
-		panic("wasn't expecting multiple switch settings")
-	}
-	switchSymbol := switchSequence[0]
-
 	return ct.optionNodes[switchSymbol].Decode(reader)
 }
 
@@ -179,14 +174,10 @@ func (ct *ChoiceTwo) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 func (ct *ChoiceTwo) DecodeMyMetaData(reader bitstream.IBitReader) error {
 	switchScribe := scribenode.NewFixedBits(switchBits)
 	dataScribe := scribenode.NewFixedBits(dataBits)
-	counts, err := dataScribe.Decode(reader)
+	count, err := dataScribe.Decode(reader)
 	if err != nil {
 		return err
 	}
-	if len(counts) != 1 {
-		panic("didn't expect multiple counts")
-	}
-	count := counts[0]
 
 	ct.sequenceSymbolsFromSwitch = make([][]types.TSymbol, switchPositions)
 	for i := 0; i < switchPositions; i++ {
@@ -195,22 +186,14 @@ func (ct *ChoiceTwo) DecodeMyMetaData(reader bitstream.IBitReader) error {
 	ct.switchSymbolFromSequence = make(map[types.TSymbol]types.TSymbol, count)
 
 	for range count {
-		dataSymbolSequence, err := dataScribe.Decode(reader)
+		dataSymbol, err := dataScribe.Decode(reader)
 		if err != nil {
 			return err
 		}
-		if len(dataSymbolSequence) != 1 {
-			panic("expecting sequence of data symbols to be length 1")
-		}
-		dataSymbol := dataSymbolSequence[0]
-		switchSymbolSequence, err := switchScribe.Decode(reader)
+		switchSymbol, err := switchScribe.Decode(reader)
 		if err != nil {
 			return err
 		}
-		if len(switchSymbolSequence) != 1 {
-			panic("expecting sequence of switch symbols to be length 1")
-		}
-		switchSymbol := switchSymbolSequence[0]
 		ct.sequenceSymbolsFromSwitch[int(switchSymbol)] =
 			append(ct.sequenceSymbolsFromSwitch[int(switchSymbol)], dataSymbol)
 		ct.switchSymbolFromSequence[dataSymbol] = switchSymbol

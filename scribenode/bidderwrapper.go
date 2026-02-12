@@ -34,6 +34,6 @@ func (b *BidderWrapper) BidBits(symbol types.TSymbol) (bitCount types.TBitCount,
 func (b *BidderWrapper) Encode(symbol types.TSymbol, writer bitstream.IBitWriter) (bool, error) {
 	return b.scribe.Encode(symbol, writer)
 }
-func (b *BidderWrapper) Decode(reader bitstream.IBitReader) ([]types.TSymbol, error) {
+func (b *BidderWrapper) Decode(reader bitstream.IBitReader) (types.TSymbol, error) {
 	return b.scribe.Decode(reader)
 }
