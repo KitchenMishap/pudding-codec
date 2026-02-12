@@ -4,7 +4,6 @@ import (
 	"github.com/KitchenMishap/pudding-codec/alphabets"
 	"github.com/KitchenMishap/pudding-codec/bitstream"
 	"github.com/KitchenMishap/pudding-codec/scribenode"
-	"github.com/KitchenMishap/pudding-codec/sequences"
 	"github.com/KitchenMishap/pudding-codec/types"
 )
 
@@ -46,9 +45,8 @@ func NewRecursiveShannonFano(switchNode scribenode.IScribeNode) *ShannonFano {
 	return sf
 }
 
-func (sf *ShannonFano) Observe(sampleSequences [][]types.TSymbol) error {
-	sf.alphabetCounts.AddData(
-		sequences.SliceOfSingleSymbolsFromSampleOfSequences(sampleSequences))
+func (sf *ShannonFano) Observe(samples []types.TSymbol) error {
+	sf.alphabetCounts.AddData(samples)
 	return nil
 }
 

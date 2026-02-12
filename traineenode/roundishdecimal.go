@@ -108,27 +108,21 @@ func (rd *RoundishDecimal) BidBits(value types.TSymbol) (bitCount types.TBitCoun
 	return bitCount, false, nil
 }
 
-// ToDo ditch this [][] concept globally!
-func (rd *RoundishDecimal) Observe(sampleSequences [][]types.TSymbol) error {
-	for _, sequence := range sampleSequences {
-		if len(sequence) != 1 {
-			panic("need sequence length to be one")
-		}
-		symbolSequence := RoundishNumberRepresentation(sequence[0])
+func (rd *RoundishDecimal) Observe(samples []types.TSymbol) error {
+	for _, sample := range samples {
+		symbolSequence := RoundishNumberRepresentation(sample)
 		if len(symbolSequence) < 1 {
 			panic("too few symbols")
 		}
 
 		leadingZerosSymbol := symbolSequence[0]
-		leadingZerosSlice := []types.TSymbol{leadingZerosSymbol}
-		err := rd.leadingZerosNode.Observe([][]types.TSymbol{leadingZerosSlice})
+		err := rd.leadingZerosNode.Observe([]types.TSymbol{leadingZerosSymbol})
 		if err != nil {
 			return err
 		}
 
 		for _, metaDigitSymbol := range symbolSequence[1:] {
-			metaDigitSymbolSlice := []types.TSymbol{metaDigitSymbol}
-			err = rd.metaDigitNode.Observe([][]types.TSymbol{metaDigitSymbolSlice})
+			err = rd.metaDigitNode.Observe([]types.TSymbol{metaDigitSymbol})
 			if err != nil {
 				return err
 			}

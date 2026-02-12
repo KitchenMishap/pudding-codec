@@ -5,7 +5,6 @@ import (
 	"github.com/KitchenMishap/pudding-codec/compositeroots"
 	engine2 "github.com/KitchenMishap/pudding-codec/engine"
 	"github.com/KitchenMishap/pudding-codec/scribenode"
-	"github.com/KitchenMishap/pudding-codec/sequences"
 	"github.com/KitchenMishap/pudding-codec/traineenode"
 	"github.com/KitchenMishap/pudding-codec/types"
 	"math"
@@ -109,7 +108,7 @@ func Test_RawVersusTraineeChoiceScribe(t *testing.T) {
 		t.Fatal("untrained engine refused")
 	}
 
-	err = engineChoice.DataNode.Observe([][]types.TData{data})
+	err = engineChoice.DataNode.Observe(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,7 +146,7 @@ func Test_TraineeChoiceVersusShannonFano(t *testing.T) {
 		t.Fatal("untrained engine refused")
 	}
 
-	err = engineChoice.DataNode.Observe([][]types.TData{data})
+	err = engineChoice.DataNode.Observe(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,8 +177,7 @@ func Test_TraineeChoiceVersusShannonFano(t *testing.T) {
 		t.Fatal("untrained engine should refuse")
 	}
 
-	err = engineShannon.DataNode.Observe(
-		sequences.SingleSymbolDataToSampleOfSequences(data))
+	err = engineShannon.DataNode.Observe(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,8 +206,7 @@ func Test_ShannonEncodeDecode(t *testing.T) {
 		scribenode.WrapScribeAsBidderScribe(metaDataRootShannon),
 		dataRootShannon)
 
-	err := engineShannon.DataNode.Observe(
-		sequences.SingleSymbolDataToSampleOfSequences(data))
+	err := engineShannon.DataNode.Observe(data)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,7 +11,7 @@ import (
 type ITraineeNode interface {
 	scribenode.IBidderScribe
 	// Observe some messages (sequences) for the purpose of future improvement
-	Observe(sampleSequences [][]types.TSymbol) error
+	Observe(sampleSequences []types.TSymbol) error
 	// Improve myself based on what I have observed
 	Improve() error
 	EncodeMyMetaData(writer bitstream.IBitWriter) error

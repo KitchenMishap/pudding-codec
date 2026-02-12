@@ -5,7 +5,6 @@ import (
 	"github.com/KitchenMishap/pudding-codec/compositeroots"
 	engine2 "github.com/KitchenMishap/pudding-codec/engine"
 	"github.com/KitchenMishap/pudding-codec/scribenode"
-	"github.com/KitchenMishap/pudding-codec/sequences"
 	"github.com/KitchenMishap/pudding-codec/traineenode"
 	"github.com/KitchenMishap/pudding-codec/types"
 	"math"
@@ -47,8 +46,7 @@ func Test_RawVersusRoundedDecimal(t *testing.T) {
 		t.Fatal("untrained engine should refuse")
 	}
 
-	err = engineRound.DataNode.Observe(
-		sequences.SingleSymbolDataToSampleOfSequences(data))
+	err = engineRound.DataNode.Observe(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,8 +73,7 @@ func Test_RoundObserveZeroTest(t *testing.T) {
 		scribenode.WrapScribeAsBidderScribe(metaDataRootRound),
 		dataRootRound)
 
-	err := engineRound.DataNode.Observe(
-		sequences.SingleSymbolDataToSampleOfSequences([]types.TData{0}))
+	err := engineRound.DataNode.Observe([]types.TData{0})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,8 +88,7 @@ func Test_RoundEncodeDecode(t *testing.T) {
 		scribenode.WrapScribeAsBidderScribe(metaDataRootRound),
 		dataRootRound)
 
-	err := engineRound.DataNode.Observe(
-		sequences.SingleSymbolDataToSampleOfSequences(data))
+	err := engineRound.DataNode.Observe(data)
 	if err != nil {
 		t.Fatal(err)
 	}
