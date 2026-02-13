@@ -3,6 +3,7 @@ package compositeroots
 import (
 	"github.com/KitchenMishap/pudding-codec/scribenode"
 	"github.com/KitchenMishap/pudding-codec/traineenode"
+	"github.com/KitchenMishap/pudding-codec/types"
 )
 
 func NewChoiceTrainee() scribenode.IScribeNode {
@@ -23,9 +24,28 @@ func NewShannonFanoTrainee() traineenode.ITraineeNode {
 	return choiceNode
 }
 
-func NewRoundDecimalTrainee() traineenode.ITraineeNode {
+func NewRoundDecimalTrainee(rate types.TData) traineenode.ITraineeNode {
+	rateMultiplierScribe := NewRawScribe()
 	leadingZerosNode := NewShannonFanoTrainee()
 	metaDigitsNode := NewShannonFanoTrainee()
-	roundNode := traineenode.NewRoundishDecimal(leadingZerosNode, metaDigitsNode)
+	roundNode := traineenode.NewRoundishDecimal(rateMultiplierScribe,
+		leadingZerosNode, metaDigitsNode, rate)
 	return roundNode
+}
+
+func NewDemographerTrainee() traineenode.ITraineeNode {
+	rateNodes := []traineenode.ITraineeNode{
+		NewRoundDecimalTrainee(1),
+		NewRoundDecimalTrainee(2),
+		NewRoundDecimalTrainee(3),
+		NewRoundDecimalTrainee(4),
+		NewRoundDecimalTrainee(5),
+		NewRoundDecimalTrainee(6),
+		NewRoundDecimalTrainee(7),
+		NewRoundDecimalTrainee(8),
+		NewRoundDecimalTrainee(9),
+	}
+	switchNode := NewShannonFanoTrainee()
+	demoNode := traineenode.NewDemographer(switchNode, rateNodes)
+	return demoNode
 }

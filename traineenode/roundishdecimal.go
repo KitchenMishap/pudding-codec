@@ -1,27 +1,44 @@
 package traineenode
 
 import (
+	"errors"
 	"github.com/KitchenMishap/pudding-codec/bitstream"
+	"github.com/KitchenMishap/pudding-codec/scribenode"
 	"github.com/KitchenMishap/pudding-codec/types"
+	"github.com/KitchenMishap/pudding-codec/utils"
 )
 
 type RoundishDecimal struct {
-	leadingZerosNode ITraineeNode
-	metaDigitNode    ITraineeNode
+	rateMultiplierScribe scribenode.IScribeNode
+	leadingZerosNode     ITraineeNode
+	metaDigitNode        ITraineeNode
+
+	rateMultiplier types.TData // Data will be multiplied by this before rounding is attempted
+
+	// No stored observations (except in children nodes)
+	// No stored metadata (except in children nodes)
 }
 
 // Check that implements
 var _ ITraineeNode = (*RoundishDecimal)(nil)
 
-func NewRoundishDecimal(leadingZerosNode ITraineeNode, metaDigitNode ITraineeNode) *RoundishDecimal {
+func NewRoundishDecimal(rateMultiplierScribe scribenode.IScribeNode,
+	leadingZerosNode ITraineeNode, metaDigitNode ITraineeNode,
+	rateMultiplier types.TData) *RoundishDecimal {
 	result := RoundishDecimal{}
+	result.rateMultiplierScribe = rateMultiplierScribe
 	result.leadingZerosNode = leadingZerosNode
 	result.metaDigitNode = metaDigitNode
+	result.rateMultiplier = rateMultiplier
 	return &result
 }
 
 func (rd *RoundishDecimal) Encode(value types.TData, writer bitstream.IBitWriter) (refused bool, err error) {
-	symbolSequence := RoundishNumberRepresentation(value)
+	_, overflow := utils.SafeMultiply(value, rd.rateMultiplier)
+	if overflow {
+		return true, nil
+	}
+	symbolSequence := RoundishNumberRepresentation(value * rd.rateMultiplier)
 	if len(symbolSequence) < 1 {
 		panic("not enough symbols in sequence")
 	}
@@ -74,13 +91,17 @@ func (rd *RoundishDecimal) Decode(reader bitstream.IBitReader) (types.TSymbol, e
 			powTen *= 10
 		}
 	}
-	return total, nil
+	return total / rd.rateMultiplier, nil
 }
 
 func (rd *RoundishDecimal) BidBits(value types.TSymbol) (bitCount types.TBitCount, refused bool, err error) {
 	bitCount = types.TBitCount(0)
 
-	symbolSequence := RoundishNumberRepresentation(value)
+	_, overflow := utils.SafeMultiply(value, rd.rateMultiplier)
+	if overflow {
+		return 0, true, nil
+	}
+	symbolSequence := RoundishNumberRepresentation(value * rd.rateMultiplier)
 	if len(symbolSequence) < 1 {
 		panic("not enough symbols in sequence")
 	}
@@ -101,7 +122,7 @@ func (rd *RoundishDecimal) BidBits(value types.TSymbol) (bitCount types.TBitCoun
 			return 0, false, err
 		}
 		if refused {
-			panic("metaDigit bidBits refused")
+			return 0, true, nil
 		}
 		bitCount += subCount
 	}
@@ -110,7 +131,12 @@ func (rd *RoundishDecimal) BidBits(value types.TSymbol) (bitCount types.TBitCoun
 
 func (rd *RoundishDecimal) Observe(samples []types.TSymbol) error {
 	for _, sample := range samples {
-		symbolSequence := RoundishNumberRepresentation(sample)
+		_, overflow := utils.SafeMultiply(sample, rd.rateMultiplier)
+		if overflow {
+			continue
+		} // Don't observe overflows. They'll refuse to encode anyway
+
+		symbolSequence := RoundishNumberRepresentation(sample * rd.rateMultiplier)
 		if len(symbolSequence) < 1 {
 			panic("too few symbols")
 		}
@@ -132,17 +158,28 @@ func (rd *RoundishDecimal) Observe(samples []types.TSymbol) error {
 }
 
 func (rd *RoundishDecimal) Improve() error {
-	// Improve the leading zeros
+	// Improve the leading zeros node
 	err := rd.leadingZerosNode.Improve()
 	if err != nil {
 		return err
 	}
+	// And the metaDigit node
 	err = rd.metaDigitNode.Improve()
 	return err
 }
 
 func (rd *RoundishDecimal) EncodeMyMetaData(writer bitstream.IBitWriter) error {
-	err := rd.leadingZerosNode.EncodeMyMetaData(writer)
+	// My metadata
+	refused, err := rd.rateMultiplierScribe.Encode(rd.rateMultiplier, writer)
+	if err != nil {
+		return err
+	}
+	if refused {
+		return errors.New("RoundishDecimal: rate multiplier metadata node refused to encode")
+	}
+
+	// My children's metadata
+	err = rd.leadingZerosNode.EncodeMyMetaData(writer)
 	if err != nil {
 		return err
 	}
@@ -153,7 +190,15 @@ func (rd *RoundishDecimal) EncodeMyMetaData(writer bitstream.IBitWriter) error {
 	return nil
 }
 func (rd *RoundishDecimal) DecodeMyMetaData(reader bitstream.IBitReader) error {
-	err := rd.leadingZerosNode.DecodeMyMetaData(reader)
+	// My metadata
+	var err error
+	rd.rateMultiplier, err = rd.rateMultiplierScribe.Decode(reader)
+	if err != nil {
+		return err
+	}
+
+	// My children's metadata
+	err = rd.leadingZerosNode.DecodeMyMetaData(reader)
 	if err != nil {
 		return err
 	}
@@ -327,6 +372,10 @@ func EatLeadingRepeatingDigit(inputNumber types.TData, digitCount int, digitsPow
 		remainingDigitsPow10 = nextRemainingDigitsPow10
 
 		nextRemainingDigitsPow10 = remainingDigitsPow10 / 10
+		if nextRemainingDigitsPow10 == 0 {
+			return repeatingDigit, repeatCount, scraps, scrapsDigitCount, remainingDigitsPow10
+		}
+
 		nextDigit = int(scraps / remainingDigitsPow10)
 		if nextDigit > 0 {
 			nextScraps = scraps % (types.TData(nextDigit) * remainingDigitsPow10)

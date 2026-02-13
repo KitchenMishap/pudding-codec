@@ -14,7 +14,7 @@ import (
 )
 
 func Test_RawVersusChoiceScribe(t *testing.T) {
-	data := []types.TData{1, 2, 3, math.MaxUint32}
+	data := []types.TData{1, 2, 3, math.MaxUint64}
 	dataBits := types.TBitCount(64 * len(data))
 
 	// Raw
@@ -72,7 +72,7 @@ func Test_LeafRefuse(t *testing.T) {
 }
 
 func Test_RawVersusTraineeChoiceScribe(t *testing.T) {
-	data := []types.TData{1, 2, 3, math.MaxUint32, 123456, 1, 2, 3, 123456}
+	data := []types.TData{1, 2, 3, math.MaxUint64, 123456, 1, 2, 3, 123456}
 	dataBits := types.TBitCount(64 * len(data))
 
 	// Raw
@@ -129,7 +129,7 @@ func Test_RawVersusTraineeChoiceScribe(t *testing.T) {
 }
 
 func Test_TraineeChoiceVersusShannonFano(t *testing.T) {
-	data := []types.TData{1, 2, 3, math.MaxUint32, 123456, 1, 2, 3, 123456}
+	data := []types.TData{1, 2, 3, math.MaxUint64, 123456, 1, 2, 3, 123456}
 
 	// Trainee Choice
 	metaDataRootChoice := compositeroots.NewChoiceScribe()
@@ -198,7 +198,7 @@ func Test_TraineeChoiceVersusShannonFano(t *testing.T) {
 }
 
 func Test_ShannonEncodeDecode(t *testing.T) {
-	data := []types.TData{1, 2, 3, math.MaxUint32, 123456, 1, 2, 3, 123456}
+	data := []types.TData{1, 2, 3, math.MaxUint64, 123456, 1, 2, 3, 123456}
 
 	metaDataRootShannon := compositeroots.NewChoiceScribe()
 	dataRootShannon := compositeroots.NewShannonFanoTrainee()

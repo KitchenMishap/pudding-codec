@@ -14,7 +14,7 @@ import (
 )
 
 func Test_RawVersusRoundedDecimal(t *testing.T) {
-	data := []types.TData{1, 2, 3, math.MaxUint32, 123456, 1, 2, 3, 123456}
+	data := []types.TData{1, 2, 3, math.MaxUint64, 123456, 1, 2, 3, 123456}
 
 	// Raw =========================================
 	metaDataRootRaw := compositeroots.NewRawScribe()
@@ -33,7 +33,7 @@ func Test_RawVersusRoundedDecimal(t *testing.T) {
 
 	// RoundDecimal =======================================
 	metaDataRootRound := compositeroots.NewRawScribe()
-	dataRootRound := compositeroots.NewRoundDecimalTrainee()
+	dataRootRound := compositeroots.NewRoundDecimalTrainee(1)
 	engineRound := engine2.NewNextGenEngine(
 		scribenode.WrapScribeAsBidderScribe(metaDataRootRound),
 		dataRootRound)
@@ -68,7 +68,7 @@ func Test_RawVersusRoundedDecimal(t *testing.T) {
 
 func Test_RoundObserveZeroTest(t *testing.T) {
 	metaDataRootRound := compositeroots.NewRawScribe()
-	dataRootRound := compositeroots.NewRoundDecimalTrainee()
+	dataRootRound := compositeroots.NewRoundDecimalTrainee(1)
 	engineRound := engine2.NewNextGenEngine(
 		scribenode.WrapScribeAsBidderScribe(metaDataRootRound),
 		dataRootRound)
@@ -80,10 +80,10 @@ func Test_RoundObserveZeroTest(t *testing.T) {
 }
 
 func Test_RoundEncodeDecode(t *testing.T) {
-	data := []types.TData{1, 2, 3, 0, math.MaxUint32, 123456, 1, 2, 3, 123456}
+	data := []types.TData{1, 2, 3, 0, math.MaxUint64, 123456, 1, 2, 3, 123456}
 
 	metaDataRootRound := compositeroots.NewRawScribe()
-	dataRootRound := compositeroots.NewRoundDecimalTrainee()
+	dataRootRound := compositeroots.NewRoundDecimalTrainee(1)
 	engineRound := engine2.NewNextGenEngine(
 		scribenode.WrapScribeAsBidderScribe(metaDataRootRound),
 		dataRootRound)
@@ -119,7 +119,7 @@ func Test_RoundEncodeDecode(t *testing.T) {
 	}
 	br := bitstream.NewBitReader(file2)
 	metaDataRootRound2 := compositeroots.NewRawScribe()
-	dataRootRound2 := compositeroots.NewRoundDecimalTrainee()
+	dataRootRound2 := compositeroots.NewRoundDecimalTrainee(1)
 	engineRound2 := engine2.NewNextGenEngine(
 		scribenode.WrapScribeAsBidderScribe(metaDataRootRound2),
 		dataRootRound2)
