@@ -255,3 +255,66 @@ func Test_ShannonEncodeDecode(t *testing.T) {
 		t.Errorf("encode error, expected %v, got %v", data, dataOut)
 	}
 }
+
+func Test_ShannonEncodeDecodeOneVal(t *testing.T) {
+	data := []types.TData{123, 123, 123, 123}
+
+	metaDataRootShannon := compositeroots.NewChoiceScribe()
+	dataRootShannon := compositeroots.NewShannonFanoTrainee()
+	engineShannon := engine2.NewNextGenEngine(
+		scribenode.WrapScribeAsBidderScribe(metaDataRootShannon),
+		dataRootShannon)
+
+	err := engineShannon.DataNode.Observe(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = engineShannon.DataNode.Improve()
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Create("../TestingFiles/test.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bw := bitstream.NewBitWriter(file)
+	refused, err := engineShannon.Encode(data, bw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if refused {
+		t.Fatal("trained engine refused")
+	}
+	err = bw.FlushBits()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	file2, err := os.Open("../TestingFiles/test.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	br := bitstream.NewBitReader(file2)
+	metaDataRootShannon2 := compositeroots.NewChoiceScribe()
+	dataRootShannon2 := compositeroots.NewShannonFanoTrainee()
+	engineShannon2 := engine2.NewNextGenEngine(
+		scribenode.WrapScribeAsBidderScribe(metaDataRootShannon2),
+		dataRootShannon2)
+
+	dataOut, err := engineShannon2.Decode(br)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = file2.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !reflect.DeepEqual(data, dataOut) {
+		t.Errorf("encode error, expected %v, got %v", data, dataOut)
+	}
+}

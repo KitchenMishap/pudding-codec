@@ -80,6 +80,9 @@ func (ct *ShannonFano) ImproveRecursive(profile alphabets.AlphabetProfile) error
 			return err
 		}
 		ct.optionNodes[0] = child
+	} else {
+		// Empty side. This can occur if there's only one symbol in the alphabet
+		ct.optionNodes[0] = scribenode.NewLiteralScribe(0) // Dummy
 	}
 
 	// 2. Populate the map for the RIGHT side
@@ -95,6 +98,9 @@ func (ct *ShannonFano) ImproveRecursive(profile alphabets.AlphabetProfile) error
 			return err
 		}
 		ct.optionNodes[1] = child
+	} else {
+		// Empty side. This can occur if there's only one symbol in the alphabet
+		ct.optionNodes[1] = scribenode.NewLiteralScribe(0) // Dummy
 	}
 
 	return nil
