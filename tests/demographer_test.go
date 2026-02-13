@@ -16,7 +16,7 @@ func Test_DemographerEncodeDecode(t *testing.T) {
 	data := []types.TData{1, 2, 3, 0, types.TData(math.MaxUint64), 123456, 1, 2, 3, 123456}
 
 	metaDataRootDemo := compositeroots.NewRawScribe()
-	dataRootDemo := compositeroots.NewDemographerTrainee()
+	dataRootDemo := compositeroots.NewDemographerPairTrainee(1, 2)
 	engineDemo := engine2.NewNextGenEngine(
 		scribenode.WrapScribeAsBidderScribe(metaDataRootDemo),
 		dataRootDemo)
@@ -52,7 +52,7 @@ func Test_DemographerEncodeDecode(t *testing.T) {
 	}
 	br := bitstream.NewBitReader(file2)
 	metaDataRootDemo2 := compositeroots.NewRawScribe()
-	dataRootDemo2 := compositeroots.NewDemographerTrainee()
+	dataRootDemo2 := compositeroots.NewDemographerPairTrainee(1, 2)
 	engineDemo2 := engine2.NewNextGenEngine(
 		scribenode.WrapScribeAsBidderScribe(metaDataRootDemo2),
 		dataRootDemo2)

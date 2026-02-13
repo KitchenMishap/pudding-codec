@@ -33,17 +33,10 @@ func NewRoundDecimalTrainee(rate types.TData) traineenode.ITraineeNode {
 	return roundNode
 }
 
-func NewDemographerTrainee() traineenode.ITraineeNode {
+func NewDemographerPairTrainee(rate1 uint64, rate2 uint64) traineenode.ITraineeNode {
 	rateNodes := []traineenode.ITraineeNode{
-		NewRoundDecimalTrainee(1),
-		NewRoundDecimalTrainee(2),
-		NewRoundDecimalTrainee(3),
-		NewRoundDecimalTrainee(4),
-		NewRoundDecimalTrainee(5),
-		NewRoundDecimalTrainee(6),
-		NewRoundDecimalTrainee(7),
-		NewRoundDecimalTrainee(8),
-		NewRoundDecimalTrainee(9),
+		NewRoundDecimalTrainee(rate1),
+		NewRoundDecimalTrainee(rate2),
 	}
 	switchNode := NewShannonFanoTrainee()
 	demoNode := traineenode.NewDemographer(switchNode, rateNodes)

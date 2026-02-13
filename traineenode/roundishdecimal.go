@@ -43,7 +43,13 @@ func (rd *RoundishDecimal) Encode(value types.TData, writer bitstream.IBitWriter
 		panic("not enough symbols in sequence")
 	}
 
+	checkDigitCount := 0
+
 	leadingZerosSymbol := symbolSequence[0]
+	checkDigitCount += LeadingZerosFrom(leadingZerosSymbol)
+	if checkDigitCount > digitsNeeded {
+		panic("trying to encode too many zeros")
+	}
 	refused, err = rd.leadingZerosNode.Encode(leadingZerosSymbol, writer)
 	if err != nil {
 		return false, err
@@ -53,6 +59,10 @@ func (rd *RoundishDecimal) Encode(value types.TData, writer bitstream.IBitWriter
 	}
 
 	for _, metaDigitSymbol := range symbolSequence[1:] {
+		checkDigitCount += RepeatingDigitFrom(metaDigitSymbol).RepeatCount
+		if checkDigitCount > digitsNeeded {
+			panic("trying to encode too many digits")
+		}
 		refused, err = rd.metaDigitNode.Encode(metaDigitSymbol, writer)
 		if err != nil {
 			return false, err
@@ -223,7 +233,7 @@ func RoundishNumberRepresentation(number types.TData) []types.TSymbol {
 	doingLeadingZeros := true
 	scraps := number
 	scrapsDigitCount := digits
-	for scraps > 0 || doingLeadingZeros {
+	for scrapsDigitCount > 0 || doingLeadingZeros {
 		var repeatingDigit, repeatCount int
 		repeatingDigit, repeatCount, scraps, scrapsDigitCount, powerOf10 = EatLeadingRepeatingDigit(scraps, scrapsDigitCount, powerOf10)
 		if doingLeadingZeros {
@@ -242,7 +252,20 @@ func RoundishNumberRepresentation(number types.TData) []types.TSymbol {
 			symbolsResult = append(symbolsResult, Symbols(repeatingDigit, repeatCount)...)
 		}
 	}
+	CountDigits(symbolsResult)
 	return symbolsResult
+}
+
+func CountDigits(digitSymbols []types.TSymbol) int {
+	leadingZeros := LeadingZerosFrom(digitSymbols[0])
+	otherDigits := 0
+	for _, metaDigitSymbol := range digitSymbols[1:] {
+		otherDigits += RepeatingDigitFrom(metaDigitSymbol).RepeatCount
+	}
+	if leadingZeros+otherDigits > digitsNeeded {
+		panic("too many digits")
+	}
+	return leadingZeros + otherDigits
 }
 
 // This symbol is in the "Leading Zeros" alphabet
@@ -371,18 +394,20 @@ func EatLeadingRepeatingDigit(inputNumber types.TData, digitCount int, digitsPow
 		scrapsDigitCount = nextScrapsDigitCount
 		remainingDigitsPow10 = nextRemainingDigitsPow10
 
-		nextRemainingDigitsPow10 = remainingDigitsPow10 / 10
-		if nextRemainingDigitsPow10 == 0 {
+		if remainingDigitsPow10 == 0 {
 			return repeatingDigit, repeatCount, scraps, scrapsDigitCount, remainingDigitsPow10
 		}
 
 		nextDigit = int(scraps / remainingDigitsPow10)
+		nextScraps = scraps
 		if nextDigit > 0 {
 			nextScraps = scraps % (types.TData(nextDigit) * remainingDigitsPow10)
 		} else {
-			nextScraps = scraps
+			// zero digit; nextScraps is just scraps
 		}
+		nextScrapsDigitCount = scrapsDigitCount - 1
 		nextRepeatCount = repeatCount + 1
-	}
+		nextRemainingDigitsPow10 = remainingDigitsPow10 / 10
+	} // for same digit
 	return repeatingDigit, repeatCount, scraps, scrapsDigitCount, remainingDigitsPow10
 }
