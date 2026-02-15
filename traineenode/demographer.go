@@ -106,6 +106,9 @@ func (dm *Demographer) Improve() error {
 		return err
 	}
 
+	// AND RESET MY ALPHABET COUNT!
+	dm.alphabetCounts.Reset()
+
 	return nil
 }
 

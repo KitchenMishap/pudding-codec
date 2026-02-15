@@ -38,7 +38,8 @@ func NewDemographerPairTrainee(rate1 uint64, rate2 uint64) traineenode.ITraineeN
 		NewRoundDecimalTrainee(rate1),
 		NewRoundDecimalTrainee(rate2),
 	}
-	switchNode := NewShannonFanoTrainee()
+	//	switchNode := NewShannonFanoTrainee()	ToDo put this back when it finally works!
+	switchNode := traineenode.WrapScribeAsTrainee(scribenode.NewFixedBits(1))
 	demoNode := traineenode.NewDemographer(switchNode, rateNodes)
 	return demoNode
 }
