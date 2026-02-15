@@ -82,7 +82,7 @@ func (ct *ShannonFano) ImproveRecursive(profile alphabets.AlphabetProfile) error
 		ct.optionNodes[0] = child
 	} else {
 		// Empty side. This can occur if there's only one symbol in the alphabet
-		ct.optionNodes[0] = scribenode.NewLiteralScribe(0) // Dummy
+		ct.optionNodes[0] = scribenode.WrapScribeAsBidderScribe(scribenode.NewLeafRefuse()) // Dummy
 	}
 
 	// 2. Populate the map for the RIGHT side
@@ -100,7 +100,7 @@ func (ct *ShannonFano) ImproveRecursive(profile alphabets.AlphabetProfile) error
 		ct.optionNodes[1] = child
 	} else {
 		// Empty side. This can occur if there's only one symbol in the alphabet
-		ct.optionNodes[1] = scribenode.NewLiteralScribe(0) // Dummy
+		ct.optionNodes[1] = scribenode.WrapScribeAsBidderScribe(scribenode.NewLeafRefuse()) // Dummy
 	}
 
 	return nil
@@ -209,7 +209,11 @@ func (ct *ShannonFano) Encode(symbol types.TSymbol, writer bitstream.IBitWriter)
 	var switchSymbol types.TSymbol
 	// If we have learned anything...
 	if ct.switchSymbolFromSequence != nil {
-		switchSymbol = ct.switchSymbolFromSequence[symbol]
+		var ok bool
+		switchSymbol, ok = ct.switchSymbolFromSequence[symbol]
+		if !ok {
+			panic("being asked to encode a symbol I'm not familiar with")
+		}
 	} else {
 		switchSymbol, refused, err = ct.chooseBestOption(symbol)
 		if err != nil {

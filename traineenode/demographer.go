@@ -62,8 +62,11 @@ func (dm *Demographer) Improve() error {
 	}
 
 	// 2) For each datum, select the best performing child and tell it to observe that data
-	_, alphabet := dm.alphabetCounts.MakeAlphabetProfile()
-	for _, datum := range alphabet {
+	alphabetProfile, _ := dm.alphabetCounts.MakeAlphabetProfile()
+	for _, entry := range alphabetProfile {
+		datum := entry.Symbol
+		count := entry.Count
+
 		cheapestBid := uint64(math.MaxUint64)
 		cheapestBidder := -1
 		for i, node := range dm.optionNodes {
@@ -80,14 +83,23 @@ func (dm *Demographer) Improve() error {
 		} // for child node
 
 		// Re-train the "best" child for this data on this (filtered) data
-		err := dm.optionNodes[cheapestBidder].Observe([]types.TSymbol{datum})
+		weightedSamples := make([]types.TSymbol, count)
+		for i := range weightedSamples {
+			weightedSamples[i] = datum
+		}
+
+		err := dm.optionNodes[cheapestBidder].Observe(weightedSamples)
 		if err != nil {
 			return err
 		}
 
 		// Train the switch too
 		switchSymbol := types.TSymbol(cheapestBidder)
-		err = dm.switchRepresentationNode.Observe([]types.TSymbol{switchSymbol})
+		weightedSwitch := make([]types.TSymbol, count)
+		for i := range weightedSwitch {
+			weightedSwitch[i] = switchSymbol
+		}
+		err = dm.switchRepresentationNode.Observe(weightedSwitch)
 		if err != nil {
 			return err
 		}
