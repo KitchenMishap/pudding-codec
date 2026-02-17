@@ -12,7 +12,7 @@ func PriceDiscovery500000(folder string) error {
 		return err
 	}
 
-	report, err := chainstats.PriceDiscovery(chain.Blockchain(), chain.HandleCreator(), 800000, 5000)
+	report, err := chainstats.PriceDiscovery(chain.Blockchain(), chain.HandleCreator(), 800000, 1000)
 	if err != nil {
 		return err
 	}

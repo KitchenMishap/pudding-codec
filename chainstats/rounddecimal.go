@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 )
 
-const blocksInBatch = 1000
+const blocksInBatch = 100
 
 func PriceDiscovery(chain chainreadinterface.IBlockChain,
 	handles chainreadinterface.IHandleCreator,
@@ -221,7 +221,7 @@ func DoMyThing(satsArray []uint64, blockHeight int64) (string, error) {
 	fmt.Printf("Starting on Block %d...\n", blockHeight)
 	startLog10 := 0.0
 	endLog10 := 1.0
-	steps := 250
+	const steps = 75
 	index, err := Refine(satsArray, startLog10, endLog10, steps)
 	if err != nil {
 		return "", err
