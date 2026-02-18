@@ -15,7 +15,7 @@ import (
 	"sync/atomic"
 )
 
-const blocksInBatch = 100
+//const blocksInBatch = 100
 
 func PriceDiscovery(chain chainreadinterface.IBlockChain,
 	handles chainreadinterface.IHandleCreator,
