@@ -32,6 +32,20 @@ func (ph *PgmHist) PlotPoint(x float64, y float64, colour3bit int) {
 	ph.PlotPixel(pixelX, pixelY-1, colour3bit)
 }
 
+func (ph *PgmHist) PlotWidePoint(xLeft float64, xRight float64, y float64, colour3bit int) {
+	pixelXLeft := int(width * xLeft)
+	pixelXRight := int(width * xRight)
+	pixelXMid := int(width * (xLeft + xRight) / 2)
+	pixelY := int(height * (1 - y))
+	ph.PlotPixel(pixelXMid, pixelY, colour3bit)
+	ph.PlotPixel(pixelXMid, pixelY, colour3bit)
+	for pixelXScan := pixelXLeft - 1; pixelXScan <= pixelXRight+1; pixelXScan++ {
+		ph.PlotPixel(pixelXScan, pixelY, colour3bit)
+	}
+	ph.PlotPixel(pixelXMid, pixelY+1, colour3bit)
+	ph.PlotPixel(pixelXMid, pixelY-1, colour3bit)
+}
+
 func (ph *PgmHist) PlotVertical(x float64) {
 	pixelX := int(width * x)
 	for y := range height {
@@ -65,17 +79,26 @@ func (ph *PgmHist) PlotPixel(x int, y int, colour3bit int) {
 
 func (ph *PgmHist) Output(filename string) {
 	fp, _ := os.Create(filename)
-	fmt.Printf("Writing pgm file")
+	fmt.Printf("Writing pgm file\n")
 	fmt.Fprintf(fp, "P6 %d %d 255\n", width, height)
+	data := [width * height * 3]byte{}
+	index := 0
 	for y := 0; y < height; y++ {
 		for x := 0; x < width; x++ {
 			//lsb := byte(ph.data[x][y] & 0xFF)
 			//msb := byte((ph.data[x][y] & 0xFF00) >> 8)
-			fp.Write([]byte{ph.data[x][y][0]})
-			fp.Write([]byte{ph.data[x][y][1]})
-			fp.Write([]byte{ph.data[x][y][2]})
+			//fp.Write([]byte{ph.data[x][y][0]})
+			//fp.Write([]byte{ph.data[x][y][1]})
+			//fp.Write([]byte{ph.data[x][y][2]})
+			data[index] = ph.data[x][y][0]
+			index++
+			data[index] = ph.data[x][y][1]
+			index++
+			data[index] = ph.data[x][y][2]
+			index++
 		}
 	}
+	fp.Write(data[:])
 	fp.Close()
-	fmt.Printf("File written")
+	fmt.Printf("File written\n")
 }

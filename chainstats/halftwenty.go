@@ -33,9 +33,10 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 	blockBatchChan := make(chan int64)
 
 	type workerResult struct {
-		blockHeights    []uint64
-		dominantAmounts []uint64
-		positions       []int
+		blockHeightStart []uint64
+		blockHeightEnd   []uint64
+		dominantAmounts  []uint64
+		positions        []int
 	}
 	resultsChan := make(chan workerResult, numWorkers)
 
@@ -55,8 +56,10 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 				default:
 				}
 
+				satsArray := make([]uint64, 0, 10000)
+				firstBlock := blockBatch
+
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
-					satsArray := make([]uint64, 0, 10000)
 					blockHandle, err := handles.BlockHandleByHeight(int64(blockIdx))
 					if err != nil {
 						return err
@@ -95,18 +98,38 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					met.Populate(satsArray)
 					round1 := met.AnalyzeHalfOneTwo()
 					round2 := halfonetwo.FilterHalfOneTwoFiveTenTwenty(round1)
-					sort.Slice(round2, func(i, j int) bool {
-						return round2[i].Strength > round2[j].Strength
-					})
-					for position, dominant := range round2 {
-						local.positions = append(local.positions, position&7)
-						local.blockHeights = append(local.blockHeights, uint64(blockIdx))
-						local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+					if len(round2) >= 10 {
+						// This is the fussy, filtered method for data rich blocks (half-one-two-ten-twenty)
+						sort.Slice(round2, func(i, j int) bool {
+							return round2[i].Strength > round2[j].Strength
+						})
+						for position, dominant := range round2 {
+							local.positions = append(local.positions, position&7)
+							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
+							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
+							local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+						}
+						// Reset for next group of blocks
+						satsArray = satsArray[:0]
+						firstBlock = blockIdx + 1
+					} else if len(round1) >= 5 {
+						// This is the less fussy method for data-poor blocks (half-one-two)
+						sort.Slice(round1, func(i, j int) bool {
+							return round1[i].Strength > round1[j].Strength
+						})
+						for position, dominant := range round1 {
+							local.positions = append(local.positions, position&7)
+							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
+							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
+							local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+						}
+						// Reset for next group of blocks
+						satsArray = satsArray[:0]
+						firstBlock = blockIdx + 1
+					} else {
+						// Let it roll, more blocks for more data until we get enough hits
+						// Where we wait for multiple blocks like this, the data point will be rendered wider
 					}
-					//if len(round2) > 0 {
-					//	local.blockHeights = append(local.blockHeights, uint64(blockIdx))
-					//	local.dominantAmounts = append(local.dominantAmounts, round2[0].Amount)
-					//}
 				} // for block
 
 				done := atomic.AddInt64(&completedBlocks, blocksInBatch)
@@ -117,7 +140,13 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 
 			} // for blockBatch from chan
 			resultsChan <- local
+
+			// Free some mem and give the OS a chanc to clear up
+			// (try to alleviate PC freezes)
+			met = nil
+			local = workerResult{}
 			runtime.Gosched()
+
 			return nil
 		}) // gofunc
 	} // for workers
@@ -142,12 +171,13 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 	// Final Reduction
 	for result := range resultsChan {
 		for index, dominant := range result.dominantAmounts {
-			blockHeight := result.blockHeights[index]
+			blockHeightStart := result.blockHeightStart[index]
+			blockHeightEnd := result.blockHeightEnd[index]
 			log10Amt := math.Log10(100000000 / float64(dominant))
 			log10Frac := log10Amt - math.Floor(log10Amt)
 			position := result.positions[index]
 			colour3bit := 7 - (position & 7)
-			hist.PlotPoint(float64(blockHeight)/888888, log10Frac, colour3bit)
+			hist.PlotWidePoint(float64(blockHeightStart)/888888, float64(blockHeightEnd)/888888, log10Frac, colour3bit)
 		}
 	}
 	hist.Output("HalfTwenty.ppm")
