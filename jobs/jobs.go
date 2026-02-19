@@ -28,7 +28,7 @@ func PriceDiscoveryHalfTwenty(folder string) error {
 		return err
 	}
 
-	err = chainstats.PriceDiscoveryHalfTwenty(chain.Blockchain(), chain.HandleCreator(), 0, 444444)
+	err = chainstats.PriceDiscoveryHalfTwenty(chain.Blockchain(), chain.HandleCreator(), 0, 888888)
 	if err != nil {
 		return err
 	}

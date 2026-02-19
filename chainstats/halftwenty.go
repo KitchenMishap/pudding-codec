@@ -43,7 +43,9 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 	// Create an errgroup and a context
 	g, ctx := errgroup.WithContext(context.Background())
 
+	fmt.Printf("numWorkers: %d\n", numWorkers)
 	for w := 0; w < numWorkers; w++ {
+		fmt.Printf("Starting worker %d\n", w)
 		g.Go(func() error { // Use the errgroup instead of "go func() {"
 			local := workerResult{}
 			met := halfonetwo.NewMantissaExponentTallies(16)
@@ -58,8 +60,10 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 
 				satsArray := make([]uint64, 0, 10000)
 				firstBlock := blockBatch
+				currentBlock := blockBatch
 
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
+					currentBlock = blockIdx
 					blockHandle, err := handles.BlockHandleByHeight(int64(blockIdx))
 					if err != nil {
 						return err
@@ -89,6 +93,9 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 							return err
 						}
 						for _, sats := range txoAmounts {
+							if IsLessThanThreeDecimalDigits(uint64(sats)) {
+								continue // Round number of sats, not interested
+							}
 							satsArray = append(satsArray, uint64(sats))
 						} // for txo amounts
 					} // for transactions
@@ -132,6 +139,25 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					}
 				} // for block
 
+				// If we have unprocessed sats at the end of a batch we will have to process
+				// them here rather than erroneously carrying them over to the next (unrelated) batch
+				// This is the less fussy method for data-poor blocks (half-one-two)
+				met.Wipe()
+				met.Populate(satsArray)
+				round1b := met.AnalyzeHalfOneTwo()
+				sort.Slice(round1b, func(i, j int) bool {
+					return round1b[i].Strength > round1b[j].Strength
+				})
+				for position, dominant := range round1b {
+					local.positions = append(local.positions, position&7)
+					local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
+					local.blockHeightEnd = append(local.blockHeightEnd, uint64(currentBlock))
+					local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+				}
+				// Reset for next group of blocks
+				satsArray = satsArray[:0]
+				firstBlock = currentBlock + 1
+
 				done := atomic.AddInt64(&completedBlocks, blocksInBatch)
 				if done%1000 == 0 || done == interestedBlocks {
 					fmt.Printf("\r\tProgress: %.1f%%    ", float64(100*done)/float64(interestedBlocks))
@@ -141,12 +167,14 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 			} // for blockBatch from chan
 			resultsChan <- local
 
-			// Free some mem and give the OS a chanc to clear up
+			fmt.Printf("Worker done and cleaning up\n")
+			// Free some mem and give the OS a chance to clear up
 			// (try to alleviate PC freezes)
 			met = nil
 			local = workerResult{}
 			runtime.Gosched()
 
+			fmt.Printf("Worker cleaned up and returning")
 			return nil
 		}) // gofunc
 	} // for workers
@@ -161,25 +189,55 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 		}
 	}()
 
+	// ... after the goroutine that feeds blockBatchChan ...
+
+	// 1. Create a way to signal when the reduction is done
+	reductionDone := make(chan struct{})
+
+	// 2. Start the reduction loop in the BACKGROUND before g.Wait()
+	go func() {
+		worker := 0
+		for result := range resultsChan {
+			fmt.Printf("Plotting data from a finished worker, %d of %d\n", worker, numWorkers)
+			for index, dominant := range result.dominantAmounts {
+				blockHeightStart := result.blockHeightStart[index]
+				blockHeightEnd := result.blockHeightEnd[index]
+				log10Amt := math.Log10(100000000 / float64(dominant))
+				log10Frac := log10Amt - math.Floor(log10Amt)
+				position := result.positions[index]
+				colour3bit := 7 - (position & 7)
+				hist.PlotWidePoint(float64(blockHeightStart)/888888, float64(blockHeightEnd)/888888, log10Frac, colour3bit)
+			}
+			fmt.Printf("Finished plotting data from a finished worker\n")
+			worker++
+		}
+		close(reductionDone)
+	}()
+
+	// 3. Now Wait for the workers to finish
 	err := g.Wait()
+
+	// 4. Close the results channel so the reduction loop knows to finish
+	close(resultsChan)
+
+	// 5. Wait for the reduction loop to actually finish plotting
+	<-reductionDone
+
 	if err != nil {
 		return err
 	}
-	close(resultsChan)
 	fmt.Printf("\nDone that now\n")
-
-	// Final Reduction
-	for result := range resultsChan {
-		for index, dominant := range result.dominantAmounts {
-			blockHeightStart := result.blockHeightStart[index]
-			blockHeightEnd := result.blockHeightEnd[index]
-			log10Amt := math.Log10(100000000 / float64(dominant))
-			log10Frac := log10Amt - math.Floor(log10Amt)
-			position := result.positions[index]
-			colour3bit := 7 - (position & 7)
-			hist.PlotWidePoint(float64(blockHeightStart)/888888, float64(blockHeightEnd)/888888, log10Frac, colour3bit)
-		}
-	}
 	hist.Output("HalfTwenty.ppm")
+
 	return nil
+}
+
+func IsLessThanThreeDecimalDigits(val uint64) bool {
+	if val == 0 {
+		return true
+	}
+	for val%10 == 0 {
+		val /= 10
+	}
+	return val <= 99
 }
