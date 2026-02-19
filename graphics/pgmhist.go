@@ -77,9 +77,33 @@ func (ph *PgmHist) PlotPixel(x int, y int, colour3bit int) {
 	}
 }
 
+func (ph *PgmHist) NormalizeColumns() {
+	for x := 0; x < width; x++ {
+		maxByte := byte(0)
+		for y := 0; y < height; y++ {
+			if ph.data[x][y][0] > maxByte {
+				maxByte = ph.data[x][y][0]
+			}
+			if ph.data[x][y][1] > maxByte {
+				maxByte = ph.data[x][y][1]
+			}
+			if ph.data[x][y][2] > maxByte {
+				maxByte = ph.data[x][y][2]
+			}
+		}
+		if maxByte > 0 && maxByte < 255 {
+			for y := 0; y < height; y++ {
+				ph.data[x][y][0] = byte((255 * int(ph.data[x][y][0])) / int(maxByte))
+				ph.data[x][y][1] = byte((255 * int(ph.data[x][y][1])) / int(maxByte))
+				ph.data[x][y][2] = byte((255 * int(ph.data[x][y][2])) / int(maxByte))
+			}
+		}
+	}
+}
+
 func (ph *PgmHist) Output(filename string) {
 	fp, _ := os.Create(filename)
-	fmt.Printf("Writing pgm file\n")
+	fmt.Printf("Writing ppm file\n")
 	fmt.Fprintf(fp, "P6 %d %d 255\n", width, height)
 	data := [width * height * 3]byte{}
 	index := 0

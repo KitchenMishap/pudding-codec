@@ -228,7 +228,8 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 	}
 	fmt.Printf("\nDone that now\n")
 	hist.Output("HalfTwenty.ppm")
-
+	hist.NormalizeColumns()
+	hist.Output("HalfTwentyNormalized.ppm")
 	return nil
 }
 
