@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-// Quad FullHD
+// Seventeen years of FHD
 const width = 1920 * 17
 const height = 1080
 

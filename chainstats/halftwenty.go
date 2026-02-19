@@ -50,7 +50,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 		fmt.Printf("Starting worker %d\n", w)
 		g.Go(func() error { // Use the errgroup instead of "go func() {"
 			local := workerResult{}
-			met := halfonetwo.NewMantissaExponentTallies(16)
+			met := halfonetwo.NewMantissaExponentTallies(12)
 
 			for blockBatch := range blockBatchChan {
 				// Check if another worker already failed
