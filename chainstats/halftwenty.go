@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"sort"
 	"sync/atomic"
+	"time"
 )
 
 const blocksInBatch = 1000
@@ -35,6 +36,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 	type workerResult struct {
 		blockHeightStart []uint64
 		blockHeightEnd   []uint64
+		blockHourCol     []int
 		dominantAmounts  []uint64
 		positions        []int
 	}
@@ -72,6 +74,18 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					if err != nil {
 						return err
 					}
+
+					nei, err := block.NonEssentialInts()
+					if err != nil {
+						continue // Bodge ?!
+					}
+					blockTime, ok := (*nei)["time"]
+					if !ok {
+						panic("could not get block time")
+					}
+					bTime := time.Unix(blockTime, 0)
+					hourCol := bTime.Hour()/6 + 1 // A number between 1 and 6
+
 					tCount, err := block.TransactionCount()
 					if err != nil {
 						return err
@@ -114,6 +128,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 							local.positions = append(local.positions, position&7)
 							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
 							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
+							local.blockHourCol = append(local.blockHourCol, hourCol)
 							local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
 						}
 						// Reset for next group of blocks
@@ -128,6 +143,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 							local.positions = append(local.positions, position&7)
 							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
 							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
+							local.blockHourCol = append(local.blockHourCol, hourCol)
 							local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
 						}
 						// Reset for next group of blocks
@@ -152,6 +168,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					local.positions = append(local.positions, position&7)
 					local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
 					local.blockHeightEnd = append(local.blockHeightEnd, uint64(currentBlock))
+					local.blockHourCol = append(local.blockHourCol, 6)
 					local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
 				}
 				// Reset for next group of blocks
@@ -204,8 +221,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 				blockHeightEnd := result.blockHeightEnd[index]
 				log10Amt := math.Log10(100000000 / float64(dominant))
 				log10Frac := log10Amt - math.Floor(log10Amt)
-				position := result.positions[index]
-				colour3bit := 7 - (position & 7)
+				colour3bit := result.blockHourCol[index]
 				hist.PlotWidePoint(float64(blockHeightStart)/888888, float64(blockHeightEnd)/888888, log10Frac, colour3bit)
 			}
 			fmt.Printf("Finished plotting data from a finished worker\n")
