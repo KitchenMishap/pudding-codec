@@ -53,15 +53,19 @@ func (lb *LogYFracHist) AssessPrimePeaks(amount uint64, threshold int) bool {
 	matchingPeaks := 0
 	// Note that 1,2,3,5,7,11 are all prime numbers, to avoid matching "offset" ghosts
 	if lb.PeakNear(lb.AmountToBin(amount)) { // The "One" is a required peak
-		if lb.PeakNear(lb.AmountToBin(amount * 3)) {
-			matchingPeaks++
-		} // "Three" is a bonus score
-		if lb.PeakNear(lb.AmountToBin(amount * 7)) {
-			matchingPeaks++
-		} // "Seven" is a bonus score
-		if lb.PeakNear(lb.AmountToBin(amount * 11)) {
-			matchingPeaks++
-		} // "Eleven" is a bonus score
+		if lb.PeakNear(lb.AmountToBin(amount * 2)) { // The "Two" is a required peak
+			if lb.PeakNear(lb.AmountToBin(amount * 5)) { // The "Five" is a required peak
+				if lb.PeakNear(lb.AmountToBin(amount * 3)) {
+					matchingPeaks++
+				} // "Three" is a bonus score
+				if lb.PeakNear(lb.AmountToBin(amount * 7)) {
+					matchingPeaks++
+				} // "Seven" is a bonus score
+				if lb.PeakNear(lb.AmountToBin(amount * 11)) {
+					matchingPeaks++
+				} // "Eleven" is a bonus score
+			}
+		}
 	}
 	return matchingPeaks >= threshold
 }

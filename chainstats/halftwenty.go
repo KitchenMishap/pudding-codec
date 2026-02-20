@@ -50,7 +50,8 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 		g.Go(func() error { // Use the errgroup instead of "go func() {"
 			local := workerResult{}
 			met := halfonetwo.NewMantissaExponentTallies(12)
-			logY := halfonetwo.NewLogYFracHist(65536, 10)
+			logBase := 5 * math.Pi // 5 Pi as a log base is bigger than 10 and transcendental (no repeats)
+			logY := halfonetwo.NewLogYFracHist(65536, logBase)
 
 			for blockBatch := range blockBatchChan {
 				// Check if another worker already failed
@@ -84,7 +85,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 						panic("could not get block time")
 					}
 					bTime := time.Unix(blockTime, 0)
-					hourCol := bTime.Hour()/6 + 1 // A number between 1 and 6
+					hourCol := bTime.Hour()/4 + 1 // A number between 1 and 6
 
 					tCount, err := block.TransactionCount()
 					if err != nil {
@@ -120,16 +121,16 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					logY.Wipe()
 					logY.Populate(satsArray)
 					logY.FindPeaks()
-					roundA := met.AnalyzeHalfOneTwo()
-					roundB := met.AnalyzeEighthQuarterHalf()
-					roundC := halfonetwo.Filter50_100_125_200_250_500(roundA, roundB)
-					for _, dominant := range roundC {
-						if logY.AssessPrimePeaks(dominant.Amount, 3) {
+					//roundA := met.AnalyzeHalfOneTwo()
+					//roundB := met.AnalyzeEighthQuarterHalf()
+					//roundC := halfonetwo.Filter50_100_125_200_250_500(roundA, roundB)
+					for _, amount := range satsArray {
+						if logY.AssessPrimePeaks(amount, 1) {
 							local.positions = append(local.positions, 0)
 							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
 							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
 							local.blockHourCol = append(local.blockHourCol, hourCol)
-							local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+							local.dominantAmounts = append(local.dominantAmounts, amount)
 						}
 					}
 					// Reset for next group of blocks
