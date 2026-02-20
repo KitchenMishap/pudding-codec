@@ -48,7 +48,7 @@ func (lb *LogYFracHist) FindPeaks() {
 	}
 }
 
-// Recommend threshold between 1 (sensitive) and 3 (fussy)
+// Recommend threshold between 1 (sensitive) and 2 (fussy)
 func (lb *LogYFracHist) AssessPrimePeaks(amount uint64, threshold int) bool {
 	matchingPeaks := 0
 	// Note that 1,2,3,5,7,11 are all prime numbers, to avoid matching "offset" ghosts

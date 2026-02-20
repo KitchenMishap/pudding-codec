@@ -51,7 +51,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 			local := workerResult{}
 			met := halfonetwo.NewMantissaExponentTallies(12)
 			logBase := 5 * math.Pi // 5 Pi as a log base is bigger than 10 and transcendental (no repeats)
-			logY := halfonetwo.NewLogYFracHist(65536, logBase)
+			logY := halfonetwo.NewLogYFracHist(10000, logBase)
 
 			for blockBatch := range blockBatchChan {
 				// Check if another worker already failed
@@ -125,7 +125,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					//roundB := met.AnalyzeEighthQuarterHalf()
 					//roundC := halfonetwo.Filter50_100_125_200_250_500(roundA, roundB)
 					for _, amount := range satsArray {
-						if logY.AssessPrimePeaks(amount, 1) {
+						if logY.AssessPrimePeaks(amount, 3) {
 							local.positions = append(local.positions, 0)
 							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
 							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
