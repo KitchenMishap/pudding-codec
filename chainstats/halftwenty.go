@@ -1,6 +1,7 @@
 package chainstats
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"math"
 	"runtime"
+	"slices"
 	"sync/atomic"
 	"time"
 )
@@ -62,6 +64,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 				}
 
 				satsArray := make([]uint64, 0, 10000)
+				dominantAmounts := make([]halfonetwo.DominantAmount, 1000)
 				firstBlock := blockBatch
 				//currentBlock := blockBatch
 
@@ -124,14 +127,24 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					//roundA := met.AnalyzeHalfOneTwo()
 					//roundB := met.AnalyzeEighthQuarterHalf()
 					//roundC := halfonetwo.Filter50_100_125_200_250_500(roundA, roundB)
+					dominantAmounts = dominantAmounts[:0]
 					for _, amount := range satsArray {
-						if logY.AssessPrimePeaks(amount, 3) {
-							local.positions = append(local.positions, 0)
-							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
-							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
-							local.blockHourCol = append(local.blockHourCol, hourCol)
-							local.dominantAmounts = append(local.dominantAmounts, amount)
+						strength := logY.AssessPrimePeaks(amount, 3)
+						if strength > 0 {
+							dominantAmounts = append(dominantAmounts, halfonetwo.DominantAmount{amount, strength})
 						}
+					}
+					// Reverse sort by strength
+					slices.SortFunc(dominantAmounts, func(a, b halfonetwo.DominantAmount) int {
+						return -cmp.Compare(a.Strength, b.Strength) // -ve to reverse sort
+					})
+					// Hit parade
+					for _, dominant := range dominantAmounts[0:50] {
+						local.positions = append(local.positions, 0)
+						local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
+						local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
+						local.blockHourCol = append(local.blockHourCol, hourCol)
+						local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
 					}
 					// Reset for next group of blocks
 					satsArray = satsArray[:0]

@@ -49,7 +49,7 @@ func (met *MantissaExponentTallies) Populate(amounts []uint64) {
 
 type DominantAmount struct {
 	Amount   uint64
-	Strength int
+	Strength float64
 }
 
 func (met *MantissaExponentTallies) AnalyzeHalfOneTwo() []DominantAmount {
@@ -79,7 +79,7 @@ func (met *MantissaExponentTallies) AnalyzeHalfOneTwo() []DominantAmount {
 			// We have the mantissa, what is the amount?
 			mantissaInTopBits := mantissa << met.mantissaShift
 			originalAmount := mantissaInTopBits >> leadingZerosForOne
-			result = append(result, DominantAmount{originalAmount, int(strength)})
+			result = append(result, DominantAmount{originalAmount, float64(strength)})
 		}
 	}
 	return result
@@ -110,7 +110,7 @@ func (met *MantissaExponentTallies) AnalyzeEighthQuarterHalf() []DominantAmount 
 			// We have the mantissa, what is the amount?
 			mantissaInTopBits := mantissa << met.mantissaShift
 			originalAmount := mantissaInTopBits >> leadingZerosForQuarter
-			result = append(result, DominantAmount{originalAmount, int(strength)})
+			result = append(result, DominantAmount{originalAmount, float64(strength)})
 		}
 	}
 	return result
