@@ -6,7 +6,8 @@ import (
 )
 
 // Seventeen years of FHD
-const width = 1920 * 17
+// const width = 1920 * 17
+const width = 8888
 const height = 1080
 
 func TestPgmHist() {

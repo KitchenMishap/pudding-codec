@@ -68,7 +68,10 @@ func (met *MantissaExponentTallies) AnalyzeHalfOneTwo() []DominantAmount {
 				continue // Not interested unless the "one" tally dominates
 			}
 			strength := halfTally // Slowest ship in a convoy
-			if twoTally > halfTally {
+			if oneTally < strength {
+				strength = oneTally
+			}
+			if twoTally < strength {
 				strength = twoTally
 			}
 			// We have a candidate half-one-two pattern featuring "strength" triplets of amounts
@@ -82,40 +85,56 @@ func (met *MantissaExponentTallies) AnalyzeHalfOneTwo() []DominantAmount {
 	return result
 }
 
-func FilterHalfOneTwoFiveTenTwenty(halfOneTwoResults []DominantAmount) []DominantAmount {
+// Like the above, but no "one" to insist on being strongest
+func (met *MantissaExponentTallies) AnalyzeEighthQuarterHalf() []DominantAmount {
+	result := make([]DominantAmount, 0)
+	for mantissa := range met.mantissaCount {
+		for leadingZerosForQuarter := 1; leadingZerosForQuarter <= 62; leadingZerosForQuarter++ {
+			leadingZerosForEighth := leadingZerosForQuarter + 1 // The "eighth" has one more leading zero than the "quarter"
+			leadingZerosForHalf := leadingZerosForQuarter - 1   // The "half" has one less leading zero than the "quarter"
+			eighthTally := met.ExpTalliesByMantissa[mantissa][leadingZerosForEighth]
+			quarterTally := met.ExpTalliesByMantissa[mantissa][leadingZerosForQuarter]
+			halfTally := met.ExpTalliesByMantissa[mantissa][leadingZerosForHalf]
+			if eighthTally*quarterTally*halfTally == 0 {
+				continue // Not interested unless all non-zero
+			}
+			strength := eighthTally // Slowest ship in a convoy
+			if quarterTally < strength {
+				strength = quarterTally
+			}
+			if halfTally < strength {
+				strength = halfTally
+			}
+			// We have a candidate eighth-quarter-half pattern featuring "strength" triplets of amounts
+
+			// We have the mantissa, what is the amount?
+			mantissaInTopBits := mantissa << met.mantissaShift
+			originalAmount := mantissaInTopBits >> leadingZerosForQuarter
+			result = append(result, DominantAmount{originalAmount, int(strength)})
+		}
+	}
+	return result
+}
+
+// Also (unfortuneately) tends to match 100_200_250_400_500_1000
+func Filter50_100_125_200_250_500(triplets50_100_200 []DominantAmount,
+	triples125_250_500 []DominantAmount) []DominantAmount {
 	result := make([]DominantAmount, 0)
 	// Examine every pair
-	for indexA, halfOneTwoA := range halfOneTwoResults {
-		// To go with "A", we only look at "B"s that are before it
-		for indexB := 0; indexB < indexA; indexB++ {
-			halfOneTwoB := halfOneTwoResults[indexB]
-
+	for _, fifty_100_200 := range triplets50_100_200 {
+		for _, onetwentyfive_250_500 := range triples125_250_500 {
 			// So we have two different entries, and we're only visiting each pair once
-			amountA := float64(halfOneTwoA.Amount)
-			amountB := float64(halfOneTwoB.Amount)
-			ratio := amountA / amountB
+			amountA := float64(fifty_100_200.Amount)
+			amountB := float64(onetwentyfive_250_500.Amount)
+			ratio := amountB / amountA
 
 			// Not quite sure of the logic for multiplying strengths here... it just "feels" right!
-			combinedStrength := halfOneTwoA.Strength * halfOneTwoB.Strength
+			combinedStrength := fifty_100_200.Strength * onetwentyfive_250_500.Strength
 
-			if ratio > 0.099 && ratio < 0.101 {
-				// amountB is about ten times amountA... splendid! A suitable pair
-				if halfOneTwoA.Strength > halfOneTwoB.Strength {
-					// amountA has stronger evidence. Store that one
-					result = append(result, DominantAmount{halfOneTwoA.Amount, combinedStrength})
-				} else {
-					// amountB is stronger
-					result = append(result, DominantAmount{halfOneTwoB.Amount, combinedStrength})
-				}
-			} else if ratio > 9.9 && ratio < 10.1 {
-				// amountA is about ten times amountB... splendid! A suitable pair
-				if halfOneTwoA.Strength > halfOneTwoB.Strength {
-					// amountA has stronger evidence. Store that one
-					result = append(result, DominantAmount{halfOneTwoA.Amount, combinedStrength})
-				} else {
-					// amountB is stronger
-					result = append(result, DominantAmount{halfOneTwoB.Amount, combinedStrength})
-				}
+			// 250 is 2.5 times 100
+			if ratio > 2.49 && ratio < 2.51 {
+				// splendid! A suitable pair
+				result = append(result, DominantAmount{fifty_100_200.Amount, combinedStrength})
 			}
 		}
 	}

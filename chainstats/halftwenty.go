@@ -10,7 +10,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"math"
 	"runtime"
-	"sort"
 	"sync/atomic"
 	"time"
 )
@@ -51,6 +50,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 		g.Go(func() error { // Use the errgroup instead of "go func() {"
 			local := workerResult{}
 			met := halfonetwo.NewMantissaExponentTallies(12)
+			logY := halfonetwo.NewLogYFracHist(65536, 10)
 
 			for blockBatch := range blockBatchChan {
 				// Check if another worker already failed
@@ -62,10 +62,10 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 
 				satsArray := make([]uint64, 0, 10000)
 				firstBlock := blockBatch
-				currentBlock := blockBatch
+				//currentBlock := blockBatch
 
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
-					currentBlock = blockIdx
+					//currentBlock = blockIdx
 					blockHandle, err := handles.BlockHandleByHeight(int64(blockIdx))
 					if err != nil {
 						return err
@@ -117,64 +117,82 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					// Here is the main work!
 					met.Wipe()
 					met.Populate(satsArray)
-					round1 := met.AnalyzeHalfOneTwo()
-					round2 := halfonetwo.FilterHalfOneTwoFiveTenTwenty(round1)
-					if len(round2) >= 10 {
-						// This is the fussy, filtered method for data rich blocks (half-one-two-ten-twenty)
-						sort.Slice(round2, func(i, j int) bool {
-							return round2[i].Strength > round2[j].Strength
-						})
-						for position, dominant := range round2 {
-							local.positions = append(local.positions, position&7)
+					logY.Wipe()
+					logY.Populate(satsArray)
+					logY.FindPeaks()
+					roundA := met.AnalyzeHalfOneTwo()
+					roundB := met.AnalyzeEighthQuarterHalf()
+					roundC := halfonetwo.Filter50_100_125_200_250_500(roundA, roundB)
+					for _, dominant := range roundC {
+						if logY.AssessPrimePeaks(dominant.Amount, 3) {
+							local.positions = append(local.positions, 0)
 							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
 							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
 							local.blockHourCol = append(local.blockHourCol, hourCol)
 							local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
 						}
-						// Reset for next group of blocks
-						satsArray = satsArray[:0]
-						firstBlock = blockIdx + 1
-					} else if len(round1) >= 5 {
-						// This is the less fussy method for data-poor blocks (half-one-two)
-						sort.Slice(round1, func(i, j int) bool {
-							return round1[i].Strength > round1[j].Strength
-						})
-						for position, dominant := range round1 {
-							local.positions = append(local.positions, position&7)
-							local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
-							local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
-							local.blockHourCol = append(local.blockHourCol, hourCol)
-							local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
-						}
-						// Reset for next group of blocks
-						satsArray = satsArray[:0]
-						firstBlock = blockIdx + 1
-					} else {
-						// Let it roll, more blocks for more data until we get enough hits
-						// Where we wait for multiple blocks like this, the data point will be rendered wider
 					}
+					// Reset for next group of blocks
+					satsArray = satsArray[:0]
+					firstBlock = blockIdx + 1
+					/*
+						round2 := halfonetwo.FilterHalfOneTwoFiveTenTwenty(round1)
+						if len(round2) >= 10 {
+							// This is the fussy, filtered method for data rich blocks (half-one-two-ten-twenty)
+							sort.Slice(round2, func(i, j int) bool {
+								return round2[i].Strength > round2[j].Strength
+							})
+							for position, dominant := range round2 {
+								local.positions = append(local.positions, position&7)
+								local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
+								local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
+								local.blockHourCol = append(local.blockHourCol, hourCol)
+								local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+							}
+							// Reset for next group of blocks
+							satsArray = satsArray[:0]
+							firstBlock = blockIdx + 1
+						} else if len(round1) >= 5 {
+							// This is the less fussy method for data-poor blocks (half-one-two)
+							sort.Slice(round1, func(i, j int) bool {
+								return round1[i].Strength > round1[j].Strength
+							})
+							for position, dominant := range round1 {
+								local.positions = append(local.positions, position&7)
+								local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
+								local.blockHeightEnd = append(local.blockHeightEnd, uint64(blockIdx))
+								local.blockHourCol = append(local.blockHourCol, hourCol)
+								local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+							}
+							// Reset for next group of blocks
+							satsArray = satsArray[:0]
+							firstBlock = blockIdx + 1
+						} else {
+							// Let it roll, more blocks for more data until we get enough hits
+							// Where we wait for multiple blocks like this, the data point will be rendered wider
+						}*/
 				} // for block
-
-				// If we have unprocessed sats at the end of a batch we will have to process
-				// them here rather than erroneously carrying them over to the next (unrelated) batch
-				// This is the less fussy method for data-poor blocks (half-one-two)
-				met.Wipe()
-				met.Populate(satsArray)
-				round1b := met.AnalyzeHalfOneTwo()
-				sort.Slice(round1b, func(i, j int) bool {
-					return round1b[i].Strength > round1b[j].Strength
-				})
-				for position, dominant := range round1b {
-					local.positions = append(local.positions, position&7)
-					local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
-					local.blockHeightEnd = append(local.blockHeightEnd, uint64(currentBlock))
-					local.blockHourCol = append(local.blockHourCol, 6)
-					local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
-				}
-				// Reset for next group of blocks
-				satsArray = satsArray[:0]
-				firstBlock = currentBlock + 1
-
+				/*
+					// If we have unprocessed sats at the end of a batch we will have to process
+					// them here rather than erroneously carrying them over to the next (unrelated) batch
+					// This is the less fussy method for data-poor blocks (half-one-two)
+					met.Wipe()
+					met.Populate(satsArray)
+					round1b := met.AnalyzeHalfOneTwo()
+					sort.Slice(round1b, func(i, j int) bool {
+						return round1b[i].Strength > round1b[j].Strength
+					})
+					for position, dominant := range round1b {
+						local.positions = append(local.positions, position&7)
+						local.blockHeightStart = append(local.blockHeightStart, uint64(firstBlock))
+						local.blockHeightEnd = append(local.blockHeightEnd, uint64(currentBlock))
+						local.blockHourCol = append(local.blockHourCol, 6)
+						local.dominantAmounts = append(local.dominantAmounts, dominant.Amount)
+					}
+					// Reset for next group of blocks
+					satsArray = satsArray[:0]
+					firstBlock = currentBlock + 1
+				*/
 				done := atomic.AddInt64(&completedBlocks, blocksInBatch)
 				if done%1000 == 0 || done == interestedBlocks {
 					fmt.Printf("\r\tProgress: %.1f%%    ", float64(100*done)/float64(interestedBlocks))
@@ -188,6 +206,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 			// Free some mem and give the OS a chance to clear up
 			// (try to alleviate PC freezes)
 			met = nil
+			logY = nil
 			local = workerResult{}
 			runtime.Gosched()
 
@@ -222,7 +241,7 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 				log10Amt := math.Log10(100000000 / float64(dominant))
 				log10Frac := log10Amt - math.Floor(log10Amt)
 				colour3bit := result.blockHourCol[index]
-				hist.PlotWidePoint(float64(blockHeightStart)/888888, float64(blockHeightEnd)/888888, log10Frac, colour3bit)
+				hist.PlotWidePoint(float64(blockHeightStart-uint64(interestedBlock))/float64(interestedBlocks), float64(blockHeightEnd-uint64(interestedBlock))/float64(interestedBlocks), log10Frac, colour3bit)
 			}
 			fmt.Printf("Finished plotting data from a finished worker\n")
 			worker++
