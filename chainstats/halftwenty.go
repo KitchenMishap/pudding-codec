@@ -129,7 +129,10 @@ func PriceDiscoveryHalfTwenty(chain chainreadinterface.IBlockChain,
 					//roundC := halfonetwo.Filter50_100_125_200_250_500(roundA, roundB)
 					dominantAmounts = dominantAmounts[:0]
 					for _, amount := range satsArray {
-						strength := logY.AssessPrimePeaksStrength(amount)
+						logY.AssessPrimePeaksStrength(amount, false)
+					}
+					for _, amount := range satsArray {
+						strength := logY.AssessPrimePeaksStrength(amount, true)
 						if strength > 0 {
 							dominantAmounts = append(dominantAmounts, halfonetwo.DominantAmount{amount, strength})
 						}
