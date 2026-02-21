@@ -2,11 +2,15 @@ package halfonetwo
 
 import "math"
 
+const primeNumberCount = 6
+
 type LogYFracHist struct {
-	LnY             float64
-	bins            []uint64
+	LnY  float64
+	bins []uint64
+	//primeVotes		[][primeNumberCount]bool
 	peaks           []bool // A peak has a higher count than both it's neighbours
 	populationCount uint64
+	primeNumbers    []uint64
 }
 
 func NewLogYFracHist(binCount int, baseY float64) *LogYFracHist {
@@ -14,6 +18,8 @@ func NewLogYFracHist(binCount int, baseY float64) *LogYFracHist {
 	result.LnY = math.Log(baseY)
 	result.bins = make([]uint64, binCount)
 	result.peaks = make([]bool, binCount)
+	//result.primeVotes = make([][primeNumberCount]bool, binCount)
+	result.primeNumbers = ([]uint64{1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29})[0:primeNumberCount]
 	return &result
 }
 
@@ -53,43 +59,24 @@ func (lb *LogYFracHist) FindPeaks() {
 
 // Recommend threshold between 1 (sensitive) and 2 (fussy)
 // Returns a strength as a proportion of population captured
-func (lb *LogYFracHist) AssessPrimePeaks(amount uint64, threshold int) float64 {
-	matchingPeaks := 0
+func (lb *LogYFracHist) AssessPrimePeaksStrength(amount uint64) float64 {
 	matchingPopulation := uint64(0)
-	// Note that 1,2,3,5,7,11 are all prime numbers, to avoid matching "offset" ghosts
-	bin1 := lb.AmountToBin(amount)
-	bin2 := lb.AmountToBin(amount * 2)
-	bin3 := lb.AmountToBin(amount * 3)
-	bin5 := lb.AmountToBin(amount * 5)
-	bin7 := lb.AmountToBin(amount * 7)
-	bin11 := lb.AmountToBin(amount * 11)
 
-	if lb.PeakNear(bin1) { // The "One" is a required peak
-		matchingPopulation += lb.bins[bin1]
-		if lb.PeakNear(bin2) { // The "Two" is a required peak
-			matchingPopulation += lb.bins[bin2]
-			if lb.PeakNear(bin5) { // The "Five" is a required peak
-				matchingPopulation += lb.bins[bin5]
-				if lb.PeakNear(bin3) {
-					matchingPeaks++
-					matchingPopulation += lb.bins[bin3]
-				} // "Three" is a bonus score
-				if lb.PeakNear(bin7) {
-					matchingPeaks++
-					matchingPopulation += lb.bins[bin7]
-				} // "Seven" is a bonus score
-				if lb.PeakNear(bin11) {
-					matchingPeaks++
-					matchingPopulation += lb.bins[bin11]
-				} // "Eleven" is a bonus score
-			}
+	// We use prime multipliers, to avoid matching "offset" ghosts
+	primeBins := [primeNumberCount]int{}
+	for p, prime := range lb.primeNumbers {
+		bin := lb.AmountToBin(amount * prime)
+		primeBins[p] = bin
+	}
+
+	for p := range lb.primeNumbers {
+		if lb.PeakNear(primeBins[p]) {
+			matchingPopulation += lb.bins[primeBins[p]]
+		} else {
+			return 0
 		}
 	}
-	if matchingPeaks >= threshold {
-		return float64(matchingPopulation) / float64(lb.populationCount)
-	} else {
-		return 0
-	}
+	return float64(matchingPopulation) / float64(lb.populationCount)
 }
 
 func (lb *LogYFracHist) PeakNear(bin int) bool {
