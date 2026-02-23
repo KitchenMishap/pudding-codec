@@ -6,10 +6,11 @@ import (
 )
 
 // Seventeen years of FHD
-const width = 1920 * 17
+// const Width = 1920 * 17
+const Width = 8888
 
-// const width = 8888
-const height = 1080
+// const Height = 1080
+const Height = 1000
 
 func TestPgmHist() {
 	pgm := PgmHist{}
@@ -20,12 +21,18 @@ func TestPgmHist() {
 }
 
 type PgmHist struct {
-	data [width][height][3]byte
+	data [Width][Height][3]byte
+}
+
+func (ph *PgmHist) SetPoint(x float64, y float64, red byte, green byte, blue byte) {
+	pixelX := int(Width * x)
+	pixelY := int(Height * (1 - y))
+	ph.SetPixel(pixelX, pixelY, red, green, blue)
 }
 
 func (ph *PgmHist) PlotPoint(x float64, y float64, colour3bit int) {
-	pixelX := int(width * x)
-	pixelY := int(height * (1 - y))
+	pixelX := int(Width * x)
+	pixelY := int(Height * (1 - y))
 	ph.PlotPixel(pixelX, pixelY, colour3bit)
 	ph.PlotPixel(pixelX, pixelY, colour3bit)
 	ph.PlotPixel(pixelX-1, pixelY, colour3bit)
@@ -35,10 +42,10 @@ func (ph *PgmHist) PlotPoint(x float64, y float64, colour3bit int) {
 }
 
 func (ph *PgmHist) PlotWidePoint(xLeft float64, xRight float64, y float64, colour3bit int) {
-	pixelXLeft := int(width * xLeft)
-	pixelXRight := int(width * xRight)
-	pixelXMid := int(width * (xLeft + xRight) / 2)
-	pixelY := int(height * (1 - y))
+	pixelXLeft := int(Width * xLeft)
+	pixelXRight := int(Width * xRight)
+	pixelXMid := int(Width * (xLeft + xRight) / 2)
+	pixelY := int(Height * (1 - y))
 	ph.PlotPixel(pixelXMid, pixelY, colour3bit)
 	ph.PlotPixel(pixelXMid, pixelY, colour3bit)
 	for pixelXScan := pixelXLeft - 1; pixelXScan <= pixelXRight+1; pixelXScan++ {
@@ -49,21 +56,21 @@ func (ph *PgmHist) PlotWidePoint(xLeft float64, xRight float64, y float64, colou
 }
 
 func (ph *PgmHist) PlotVertical(x float64) {
-	pixelX := int(width * x)
-	for y := range height {
+	pixelX := int(Width * x)
+	for y := range Height {
 		ph.PlotPixel(pixelX, y, 7)
 	}
 }
 
 func (ph *PgmHist) PlotHorizontal(y float64) {
-	pixelY := int(height * y)
-	for x := range width {
+	pixelY := int(Height * y)
+	for x := range Width {
 		ph.PlotPixel(x, pixelY, 7)
 	}
 }
 
 func (ph *PgmHist) PlotPixel(x int, y int, colour3bit int) {
-	if x >= 0 && x < width && y >= 0 && y < height {
+	if x >= 0 && x < Width && y >= 0 && y < Height {
 		red := ((colour3bit & 4) == 4)
 		green := ((colour3bit & 2) == 2)
 		blue := ((colour3bit & 1) == 1)
@@ -79,10 +86,18 @@ func (ph *PgmHist) PlotPixel(x int, y int, colour3bit int) {
 	}
 }
 
+func (ph *PgmHist) SetPixel(x int, y int, red byte, green byte, blue byte) {
+	if x >= 0 && x < Width && y >= 0 && y < Height {
+		ph.data[x][y][0] = red
+		ph.data[x][y][1] = green
+		ph.data[x][y][2] = blue
+	}
+}
+
 func (ph *PgmHist) NormalizeColumns() {
-	for x := 0; x < width; x++ {
+	for x := 0; x < Width; x++ {
 		maxByte := byte(0)
-		for y := 0; y < height; y++ {
+		for y := 0; y < Height; y++ {
 			if ph.data[x][y][0] > maxByte {
 				maxByte = ph.data[x][y][0]
 			}
@@ -94,7 +109,7 @@ func (ph *PgmHist) NormalizeColumns() {
 			}
 		}
 		if maxByte > 0 && maxByte < 255 {
-			for y := 0; y < height; y++ {
+			for y := 0; y < Height; y++ {
 				ph.data[x][y][0] = byte((255 * int(ph.data[x][y][0])) / int(maxByte))
 				ph.data[x][y][1] = byte((255 * int(ph.data[x][y][1])) / int(maxByte))
 				ph.data[x][y][2] = byte((255 * int(ph.data[x][y][2])) / int(maxByte))
@@ -106,11 +121,11 @@ func (ph *PgmHist) NormalizeColumns() {
 func (ph *PgmHist) Output(filename string) {
 	fp, _ := os.Create(filename)
 	fmt.Printf("Writing ppm file\n")
-	fmt.Fprintf(fp, "P6 %d %d 255\n", width, height)
-	data := [width * height * 3]byte{}
+	fmt.Fprintf(fp, "P6 %d %d 255\n", Width, Height)
+	data := [Width * Height * 3]byte{}
 	index := 0
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	for y := 0; y < Height; y++ {
+		for x := 0; x < Width; x++ {
 			//lsb := byte(ph.data[x][y] & 0xFF)
 			//msb := byte((ph.data[x][y] & 0xFF00) >> 8)
 			//fp.Write([]byte{ph.data[x][y][0]})

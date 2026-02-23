@@ -36,3 +36,25 @@ func PriceDiscoveryHalfTwenty(folder string) error {
 	fmt.Printf("Done price discovery\n")
 	return nil
 }
+
+func PriceDiscoveryHumanBehaviour(folder string) error {
+	chain, err := blockchain.NewChainReader(folder)
+	if err != nil {
+		return err
+	}
+
+	bm := chainstats.NewBehaviourModel(100)
+	err = bm.GatherData(chain.Blockchain(), chain.HandleCreator(), 0, 888_888)
+	if err != nil {
+		return err
+	}
+
+	bp := chainstats.NewBehaviourPrice(888_888)
+	err = bp.AnalyzeData(chain.Blockchain(), chain.HandleCreator(), bm, 880_000, 8_888)
+	if err != nil {
+		return err
+	}
+	bp.Pgm.Output("Probabilities.ppm")
+
+	return nil
+}
