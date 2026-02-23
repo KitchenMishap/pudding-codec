@@ -58,6 +58,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 
 				satsArray := make([]uint64, 0, 10000)
 				satsArrayLimited := make([]uint64, 0, 10000)
+				satsHistogram := make(map[uint64]int, 1000)
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
 
 					satsArray = satsArray[:0]
@@ -105,10 +106,14 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 					// First, only allow a particular amount to contribute 5 times per block.
 					// This is to filter the effect of blockchain bots that have favourite amounts
 					satsArrayLimited = satsArrayLimited[:0]
-					satsHistogram := make(map[uint64]int)
+					// Reset (clear) the map so we can re-use it.
+					// Don't want to create a new one as it would thrash the gc and cause a PC Freeze.
+					for k := range satsHistogram { // This entire loop is optimized to a single clear in Go 1.11+
+						delete(satsHistogram, k)
+					}
 					for _, sats := range satsArray {
 						satsHistogram[sats]++
-						if satsHistogram[sats] <= 5 {
+						if satsHistogram[sats] <= 1 {
 							satsArrayLimited = append(satsArrayLimited, sats)
 						}
 					}
@@ -119,7 +124,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 					N := behaviourModel.BinCount
 					rateScoresLog := make([]float64, N)
 					// For every possible exchange rate
-					for i, log10Rate := range behaviourModel.Bins {
+					for log10RateBinNumber, _ := range behaviourModel.Bins {
 						probRateScoreLog := float64(0) // Log(Prob) = 0 representing Prob = 1
 						// For each sats amount in the block
 						for _, sats := range satsArrayLimited {
@@ -127,7 +132,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 							if celebrity {
 								// Celebrities distort everything, really not interested!
 							} else {
-								log10Fiat := (log10Sats + log10Rate) % N // Multiply is add for logs
+								log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
 								// Now we are in fiat, the human behaviour round number probability model holds
 								prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
 								probLog := math.Log(prob)
@@ -135,7 +140,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 							}
 						}
 						probRateScoreLog += math.Log(1 / float64(N)) // This is the (flat) P(rate)=1/N
-						rateScoresLog[i] = probRateScoreLog
+						rateScoresLog[log10RateBinNumber] = probRateScoreLog
 					}
 					// rateScoresLog[] is now a bunch of logs of tiny probabilities
 					// We need the total in non-log space, but they're too tiny to add.
@@ -175,7 +180,10 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 							//thousandthLog := math.Log(0.001)
 							//myLog := probLog * 255 / thousandthLog
 							//myIntensity := math.Max(-255, myLog) + 255
-							myIntensity := math.Exp(probLog) * 255
+							myIntensity := 255 + (probLog * 10) // Adjustment factor to bring "close" guesses into view
+							if myIntensity < 0 {
+								myIntensity = 0
+							}
 							b := byte(myIntensity)
 							y := float64(i) / float64(N)
 							bp.Pgm.SetPoint(x, y, b, b, b)
