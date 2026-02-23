@@ -30,6 +30,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 	fmt.Printf("Discovering price each block...\n")
 
 	const blocksInBatch = 100
+	peelColours := [][3]byte{{0, 255, 0}, {0, 0, 255}, {255, 0, 0}}
 
 	completedBlocks := int64(0) // Atomic int for progress
 
@@ -113,90 +114,134 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 					}
 					for _, sats := range satsArray {
 						satsHistogram[sats]++
-						if satsHistogram[sats] <= 1 {
+						if satsHistogram[sats] <= 5 {
 							satsArrayLimited = append(satsArrayLimited, sats)
 						}
 					}
 
-					// I've hit the "Bayesian underflow" wall.
-					// Need to use logs of probabilities
-					// (In addition to the log10's of amounts and rates that I was already using)
-					N := behaviourModel.BinCount
-					rateScoresLog := make([]float64, N)
-					// For every possible exchange rate
-					for log10RateBinNumber, _ := range behaviourModel.Bins {
-						probRateScoreLog := float64(0) // Log(Prob) = 0 representing Prob = 1
-						// For each sats amount in the block
+					// We "peel" off each currency as we find it
+					numPeels := 3
+					//peeledRates := make([]uint64, 0)
+					for peel := 0; peel < numPeels; peel++ {
+						if len(satsArrayLimited) == 0 {
+							break // No more data to peel!
+						}
+						// I've hit the "Bayesian underflow" wall.
+						// Need to use logs of probabilities
+						// (In addition to the log10's of amounts and rates that I was already using)
+						N := behaviourModel.BinCount
+						rateScoresLog := make([]float64, N)
+						// For every possible exchange rate
+						for log10RateBinNumber, _ := range behaviourModel.Bins {
+							probRateScoreLog := float64(0) // Log(Prob) = 0 representing Prob = 1
+							// For each sats amount in the block
+							for _, sats := range satsArrayLimited {
+								log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
+								if celebrity {
+									// Celebrities distort everything, really not interested!
+								} else {
+									log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
+									// Now we are in fiat, the human behaviour round number probability model holds
+									prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
+									probLog := math.Log(prob)
+									probRateScoreLog += probLog
+								}
+							} // for sats
+							probRateScoreLog += math.Log(1 / float64(N)) // This is the (flat) P(rate)=1/N
+							rateScoresLog[log10RateBinNumber] = probRateScoreLog
+						} // for rate
+
+						// Find the WINNER of this peel
+						winnerBin := uint64(0)
+						maxVal := rateScoresLog[0]
+						for i, val := range rateScoresLog {
+							if val > maxVal {
+								maxVal = val
+								winnerBin = uint64(i)
+							}
+						}
+
+						// rateScoresLog[] is now a bunch of logs of tiny probabilities
+						// We need the total in non-log space, but they're too tiny to add.
+						// We find the max M of the logs, subtract M from all logs, exp, sum, then log and add M
+						// 1) Find the maximum log score
+						maxLog := rateScoresLog[0]
+						for _, s := range rateScoresLog {
+							if s > maxLog {
+								maxLog = s
+							}
+						}
+						// 2) Calculate the Log-Sum-Exp
+						sumExp := float64(0)
+						for _, s := range rateScoresLog {
+							sumExp += math.Exp(s - maxLog)
+						}
+						sumRateScoresLog := maxLog + math.Log(sumExp)
+
+						// Plot in graphics
+						startPrintBlock := int64(888888 - graphics.Width)
+						x := float64(blockIdx-startPrintBlock) / graphics.Width
+						if x > 0 && x < 1 {
+							bp.mutex.Lock()
+							// FIRST we "paint" ALL the probabilities as grey
+							if peel == 0 {
+								numEvidenceItems := len(satsArrayLimited)
+								for i := range N {
+									// probLog is the natural log of probability. So one is currently at 0.
+									probLog := rateScoresLog[i] - sumRateScoresLog
+
+									// Need about 5 amounts for full brightness
+									confidence := math.Min(1.0, float64(numEvidenceItems)/5)
+
+									intensity := (255 + (probLog * 20)) * confidence
+									if intensity < 0 {
+										intensity = 0
+									}
+									if intensity > 255 {
+										intensity = 255
+									}
+									b := byte(intensity)
+									y := float64(i) / float64(N)
+									bp.Pgm.SetPoint(x, y, b, b, b)
+								} // for i = rate bins
+							} // if peel 0
+
+							// SECOND, we plot a single point for the winner of this peel
+							y := float64(winnerBin) / float64(N)
+							rd := peelColours[peel][0]
+							gn := peelColours[peel][1]
+							bl := peelColours[peel][2]
+							bp.Pgm.SetPoint(x, y, rd, gn, bl)
+							bp.mutex.Unlock()
+						} // if x between 0 and 1
+
+						// NOW that we've plotted that found fiat currency rate, evict the amounts
+						// that supported it
+
+						// Calculate the "noise floor" - what a random bin would look like
+						noiseFloor := float64(behaviourModel.Count) / float64(N)
+
+						// Define the peel sensitivity (2 means anything twice as likely as noise)
+						sensitivity := 2.0
+
+						remainingSats := make([]uint64, 0, len(satsArrayLimited))
 						for _, sats := range satsArrayLimited {
-							log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
-							if celebrity {
-								// Celebrities distort everything, really not interested!
+							log10Sats, _ := behaviourModel.SatsToBinNumber(sats)
+							winningFiatBin := (log10Sats + winnerBin) % N
+							// If this sats amount looks "very human" at the winning rate,
+							// it's likely part of that currency's signal.
+							// We "peel" it by not adding it to the next pass
+							if float64(behaviourModel.Bins[winningFiatBin]) > noiseFloor*sensitivity {
+								// This amount was "signal" for the rate just found. Peel it! (don't add it)
 							} else {
-								log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
-								// Now we are in fiat, the human behaviour round number probability model holds
-								prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
-								probLog := math.Log(prob)
-								probRateScoreLog += probLog
+								// This amount was "noise" or belongs to a different currency to be found in
+								// a subsequent peel. Keep it!
+								remainingSats = append(remainingSats, sats)
 							}
-						}
-						probRateScoreLog += math.Log(1 / float64(N)) // This is the (flat) P(rate)=1/N
-						rateScoresLog[log10RateBinNumber] = probRateScoreLog
-					}
-					// rateScoresLog[] is now a bunch of logs of tiny probabilities
-					// We need the total in non-log space, but they're too tiny to add.
-					// We find the max M of the logs, subtract M from all logs, exp, sum, then log and add M
-					// 1) Find the maximum log score
-					maxLog := rateScoresLog[0]
-					for _, s := range rateScoresLog {
-						if s > maxLog {
-							maxLog = s
-						}
-					}
-					// 2) Calculate the Log-Sum-Exp
-					sumExp := float64(0)
-					for _, s := range rateScoresLog {
-						sumExp += math.Exp(s - maxLog)
-					}
-					sumRateScoresLog := maxLog + math.Log(sumExp)
-
-					// Plot in graphics
-					startPrintBlock := int64(888888 - graphics.Width)
-					x := float64(blockIdx-startPrintBlock) / graphics.Width
-					if x > 0 && x < 1 {
-						maxColProb := float64(0)
-						for i := range N {
-							probLog := rateScoresLog[i] - sumRateScoresLog
-							prob := math.Exp(probLog)
-							if prob > maxColProb {
-								maxColProb = prob
-							}
-						}
-
-						numEvidenceItems := len(satsArrayLimited)
-
-						bp.mutex.Lock()
-						for i := range N {
-							// probLog is the natural log of probability. So one is currently at 0.
-							probLog := rateScoresLog[i] - sumRateScoresLog
-
-							// Need about 5 amounts for full brightness
-							confidence := math.Min(1.0, float64(numEvidenceItems)/5)
-
-							intensity := (255 + (probLog * 20)) * confidence
-							if intensity < 0 {
-								intensity = 0
-							}
-							if intensity > 255 {
-								intensity = 255
-							}
-							b := byte(intensity)
-							y := float64(i) / float64(N)
-							bp.Pgm.SetPoint(x, y, b, b, b)
-						}
-						bp.mutex.Unlock()
-					}
+						} // for sats
+						satsArrayLimited = remainingSats
+					} //  for peel
 					//---------------------------
-
 				} // for block
 
 				done := atomic.AddInt64(&completedBlocks, blocksInBatch)

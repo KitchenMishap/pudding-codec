@@ -66,6 +66,9 @@ func NewBehaviourModel(binCount uint64) *BehaviourModel {
 }
 
 func (bm BehaviourModel) SatsToBinNumber(sats uint64) (bin uint64, warningCelebrity bool) {
+	if sats == 0 {
+		panic("zero sats not supported here")
+	}
 	bin = bm.SatsToBinNumberRegardless(sats)
 
 	// Is it in that bin's VIP lounge as a candidate for annoying celebrities?
