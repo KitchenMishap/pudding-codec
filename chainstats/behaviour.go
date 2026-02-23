@@ -2,10 +2,13 @@ package chainstats
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
 	"golang.org/x/sync/errgroup"
 	"math"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -267,5 +270,86 @@ func (bm *BehaviourModel) gatherData(chain chainreadinterface.IBlockChain,
 	<-reductionDone
 
 	fmt.Printf("\nDone that now\n")
+	return nil
+}
+
+func (bm *BehaviourModel) Save(prefix string) error {
+	// 1. Save Bins as Binary
+	fBins, err := os.Create(prefix + "_bins.bin")
+	if err != nil {
+		return err
+	}
+	defer fBins.Close()
+	err = binary.Write(fBins, binary.LittleEndian, bm.Bins)
+	if err != nil {
+		return err
+	}
+	err = binary.Write(fBins, binary.LittleEndian, bm.Count) // Store the total count too!
+	if err != nil {
+		return err
+	}
+	fPollutedBins, err := os.Create(prefix + "_pollutedbins.bin")
+	if err != nil {
+		return err
+	}
+	defer fPollutedBins.Close()
+	err = binary.Write(fPollutedBins, binary.LittleEndian, bm.PollutedBins)
+	if err != nil {
+		return err
+	}
+
+	// 2. Save Celebrities as JSON
+	// We only need to save the Seats maps from the VipLounges
+	celebData := make([]map[uint64]uint64, len(bm.VipLounges))
+	for i, v := range bm.VipLounges {
+		celebData[i] = v.Seats
+	}
+	fCeleb, err := os.Create(prefix + "_celebrities.json")
+	if err != nil {
+		return err
+	}
+	defer fCeleb.Close()
+	return json.NewEncoder(fCeleb).Encode(celebData)
+}
+
+func (bm *BehaviourModel) Load(prefix string) error {
+	// 1. Load Bins
+	fBins, err := os.Open(prefix + "_bins.bin")
+	if err != nil {
+		return err
+	}
+	defer fBins.Close()
+	err = binary.Read(fBins, binary.LittleEndian, bm.Bins)
+	if err != nil {
+		return err
+	}
+	err = binary.Read(fBins, binary.LittleEndian, &bm.Count)
+	if err != nil {
+		return err
+	}
+	fPollutedBins, err := os.Open(prefix + "_pollutedbins.bin")
+	if err != nil {
+		return err
+	}
+	defer fPollutedBins.Close()
+	err = binary.Read(fPollutedBins, binary.LittleEndian, bm.PollutedBins)
+	if err != nil {
+		return err
+	}
+
+	// 2. Load Celebrities
+	fCeleb, err := os.Open(prefix + "_celebrities.json")
+	if err != nil {
+		return err
+	}
+	defer fCeleb.Close()
+	celebData := []map[uint64]uint64{}
+	if err := json.NewDecoder(fCeleb).Decode(&celebData); err != nil {
+		return err
+	}
+
+	for i, seats := range celebData {
+		bm.VipLounges[i].Seats = seats
+	}
 	return nil
 }
