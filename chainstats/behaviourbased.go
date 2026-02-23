@@ -221,17 +221,15 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 						// Calculate the "noise floor" - what a random bin would look like
 						noiseFloor := float64(behaviourModel.Count) / float64(N)
 
-						// Define the peel sensitivity (2 means anything twice as likely as noise)
-						sensitivity := 2.0
-
 						remainingSats := make([]uint64, 0, len(satsArrayLimited))
 						for _, sats := range satsArrayLimited {
 							log10Sats, _ := behaviourModel.SatsToBinNumber(sats)
 							winningFiatBin := (log10Sats + winnerBin) % N
-							// If this sats amount looks "very human" at the winning rate,
-							// it's likely part of that currency's signal.
-							// We "peel" it by not adding it to the next pass
-							if float64(behaviourModel.Bins[winningFiatBin]) > noiseFloor*sensitivity {
+
+							binValue := float64(behaviourModel.Bins[winningFiatBin])
+
+							// Aggressive peel:
+							if binValue > noiseFloor {
 								// This amount was "signal" for the rate just found. Peel it! (don't add it)
 							} else {
 								// This amount was "noise" or belongs to a different currency to be found in

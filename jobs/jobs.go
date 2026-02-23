@@ -43,7 +43,7 @@ func PriceDiscoveryHumanBehaviour(folder string) error {
 		return err
 	}
 
-	binCount := 100
+	binCount := 20
 	filenamePrefix := fmt.Sprintf("model_%d", binCount)
 	bm := chainstats.NewBehaviourModel(uint64(binCount))
 	err = bm.Load(filenamePrefix)
