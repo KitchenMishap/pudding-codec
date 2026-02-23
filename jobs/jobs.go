@@ -43,7 +43,7 @@ func PriceDiscoveryHumanBehaviour(folder string) error {
 		return err
 	}
 
-	bm := chainstats.NewBehaviourModel(100)
+	bm := chainstats.NewBehaviourModel(1024)
 	err = bm.GatherData(chain.Blockchain(), chain.HandleCreator(), 0, 888_888)
 	if err != nil {
 		return err

@@ -29,7 +29,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 
 	fmt.Printf("Discovering price each block...\n")
 
-	const blocksInBatch = 1000
+	const blocksInBatch = 100
 
 	completedBlocks := int64(0) // Atomic int for progress
 
@@ -57,6 +57,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 				}
 
 				satsArray := make([]uint64, 0, 10000)
+				satsArrayLimited := make([]uint64, 0, 10000)
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
 
 					satsArray = satsArray[:0]
@@ -100,6 +101,18 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 
 					//---------------------------
 					// Core work of this function
+
+					// First, only allow a particular amount to contribute 5 times per block.
+					// This is to filter the effect of blockchain bots that have favourite amounts
+					satsArrayLimited = satsArrayLimited[:0]
+					satsHistogram := make(map[uint64]int)
+					for _, sats := range satsArray {
+						satsHistogram[sats]++
+						if satsHistogram[sats] <= 5 {
+							satsArrayLimited = append(satsArrayLimited, sats)
+						}
+					}
+
 					// I've hit the "Bayesian underflow" wall.
 					// Need to use logs of probabilities
 					// (In addition to the log10's of amounts and rates that I was already using)
@@ -109,7 +122,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 					for i, log10Rate := range behaviourModel.Bins {
 						probRateScoreLog := float64(0) // Log(Prob) = 0 representing Prob = 1
 						// For each sats amount in the block
-						for _, sats := range satsArray {
+						for _, sats := range satsArrayLimited {
 							log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
 							if celebrity {
 								// Celebrities distort everything, really not interested!
