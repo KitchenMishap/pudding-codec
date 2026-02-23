@@ -171,20 +171,25 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 								maxColProb = prob
 							}
 						}
+
+						numEvidenceItems := len(satsArrayLimited)
+
 						bp.mutex.Lock()
 						for i := range N {
-							probLog := rateScoresLog[i] - sumRateScoresLog
 							// probLog is the natural log of probability. So one is currently at 0.
-							// Map a probability of 1 (log=0) to intensity 255, and
-							// probability of 1/1000 or less to 0 (on a different log scale)
-							//thousandthLog := math.Log(0.001)
-							//myLog := probLog * 255 / thousandthLog
-							//myIntensity := math.Max(-255, myLog) + 255
-							myIntensity := 255 + (probLog * 10) // Adjustment factor to bring "close" guesses into view
-							if myIntensity < 0 {
-								myIntensity = 0
+							probLog := rateScoresLog[i] - sumRateScoresLog
+
+							// Need about 5 amounts for full brightness
+							confidence := math.Min(1.0, float64(numEvidenceItems)/5)
+
+							intensity := (255 + (probLog * 20)) * confidence
+							if intensity < 0 {
+								intensity = 0
 							}
-							b := byte(myIntensity)
+							if intensity > 255 {
+								intensity = 255
+							}
+							b := byte(intensity)
 							y := float64(i) / float64(N)
 							bp.Pgm.SetPoint(x, y, b, b, b)
 						}
