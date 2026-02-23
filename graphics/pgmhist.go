@@ -10,7 +10,7 @@ import (
 const Width = 8888
 
 // const Height = 1080
-const Height = 20
+const Height = 1024
 
 func TestPgmHist() {
 	pgm := PgmHist{}

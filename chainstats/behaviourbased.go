@@ -60,6 +60,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 				satsArray := make([]uint64, 0, 10000)
 				satsArrayLimited := make([]uint64, 0, 10000)
 				satsHistogram := make(map[uint64]int, 1000)
+				remainingSats := make([]uint64, 0, 10000)
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
 
 					satsArray = satsArray[:0]
@@ -221,7 +222,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 						// Calculate the "noise floor" - what a random bin would look like
 						noiseFloor := float64(behaviourModel.Count) / float64(N)
 
-						remainingSats := make([]uint64, 0, len(satsArrayLimited))
+						remainingSats = remainingSats[:0]
 						for _, sats := range satsArrayLimited {
 							log10Sats, _ := behaviourModel.SatsToBinNumber(sats)
 							winningFiatBin := (log10Sats + winnerBin) % N
