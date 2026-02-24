@@ -180,8 +180,9 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 						sumRateScoresLog := maxLog + math.Log(sumExp)
 
 						// Plot in graphics
-						startPrintBlock := int64(888888 - graphics.Width)
-						x := float64(blockIdx-startPrintBlock) / graphics.Width
+						//startPrintBlock := int64(888888 - graphics.Width)
+						//x := float64(blockIdx-startPrintBlock) / graphics.Width
+						x := float64(blockIdx) / 888888
 						if x > 0 && x < 1 {
 							bp.mutex.Lock()
 							// FIRST we "paint" ALL the probabilities as grey
@@ -201,9 +202,9 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 									if intensity > 255 {
 										intensity = 255
 									}
-									b := byte(intensity)
-									y := float64(i) / float64(N)
-									bp.Pgm.SetPoint(x, y, b, b, b)
+									//b := byte(255 - intensity)
+									//y := float64(i) / float64(N)
+									//bp.Pgm.SetPoint(x, y, b, b, b)
 								} // for i = rate bins
 							} // if peel 0
 

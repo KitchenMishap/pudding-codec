@@ -6,8 +6,9 @@ import (
 )
 
 // Seventeen years of FHD
-// const Width = 1920 * 17
-const Width = 8888
+const Width = 1920 * 17
+
+//const Width = 8888
 
 // const Height = 1080
 const Height = 1024
