@@ -49,7 +49,7 @@ func PriceDiscoveryHumanBehaviour(folder string) error {
 	err = bm.Load(filenamePrefix)
 	if err != nil {
 		fmt.Printf("Model files not found (%s), Running full blockchain scan...\n", err.Error())
-		err := bm.GatherData(chain.Blockchain(), chain.HandleCreator(), 0, 888_888)
+		err := bm.GatherData(chain.Blockchain(), chain.HandleCreator(), 880_000, 8_888)
 		if err != nil {
 			return err
 		}
@@ -63,7 +63,7 @@ func PriceDiscoveryHumanBehaviour(folder string) error {
 	}
 
 	bp := chainstats.NewBehaviourPrice(888_888)
-	err = bp.AnalyzeData(chain.Blockchain(), chain.HandleCreator(), bm, 000_000, 888_888)
+	err = bp.AnalyzeDataWithChange(chain.Blockchain(), chain.HandleCreator(), bm, 880_000, 8_888)
 	if err != nil {
 		return err
 	}
