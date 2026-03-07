@@ -137,7 +137,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 							probRateScoreLog := float64(0) // Log(Prob) = 0 representing Prob = 1
 							// For each sats amount in the block
 							for _, sats := range satsArrayLimited {
-								log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
+								log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
 								if celebrity {
 									// Celebrities distort everything, really not interested!
 								} else {
@@ -225,7 +225,7 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 
 						remainingSats = remainingSats[:0]
 						for _, sats := range satsArrayLimited {
-							log10Sats, _ := behaviourModel.SatsToBinNumber(sats)
+							log10Sats, _, _ := behaviourModel.SatsToBinNumber(sats)
 							winningFiatBin := (log10Sats + winnerBin) % N
 
 							binValue := float64(behaviourModel.Bins[winningFiatBin])

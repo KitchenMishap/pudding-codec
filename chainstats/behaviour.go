@@ -23,6 +23,31 @@ type BehaviourModel struct {
 	ZerosCount       uint64         // Zeros so made it into neither bins nor Count
 	CelebritiesCount uint64         // Celebrities so made int into neither bins nor Count
 	PollutedBins     []uint64       // These bins INCLUDE the celebrites, and are in fact USED to identify celebrities
+	Stats            []Welford
+}
+
+type Welford struct {
+	mutex sync.Mutex
+	Count int
+	Mean  float64
+	M2    float64 // Sum of squares of differences from mean
+}
+
+func (w *Welford) Update(x float64) {
+	w.mutex.Lock()
+	w.Count++
+	delta := x - w.Mean
+	w.Mean += delta / float64(w.Count)
+	delta2 := x - w.Mean
+	w.M2 += delta * delta2
+	w.mutex.Unlock()
+}
+
+func (w *Welford) Variance() float64 {
+	if w.Count < 1 {
+		return 0
+	}
+	return w.M2 / float64(w.Count-1)
 }
 
 type BinVipLounge struct {
@@ -62,14 +87,15 @@ func NewBehaviourModel(binCount uint64) *BehaviourModel {
 	for i := range result.VipLounges {
 		result.VipLounges[i].Seats = make(map[uint64]uint64)
 	}
+	result.Stats = make([]Welford, binCount)
 	return &result
 }
 
-func (bm BehaviourModel) SatsToBinNumber(sats uint64) (bin uint64, warningCelebrity bool) {
+func (bm BehaviourModel) SatsToBinNumber(sats uint64) (bin uint64, logFrac float64, warningCelebrity bool) {
 	if sats == 0 {
 		panic("zero sats not supported here")
 	}
-	bin = bm.SatsToBinNumberRegardless(sats)
+	bin, logFrac = bm.SatsToBinNumberRegardless(sats)
 
 	// Is it in that bin's VIP lounge as a candidate for annoying celebrities?
 	vipCount, exists := bm.VipLounges[bin].Seats[sats]
@@ -79,16 +105,16 @@ func (bm BehaviourModel) SatsToBinNumber(sats uint64) (bin uint64, warningCelebr
 		warningCelebrity = true
 	}
 
-	return bin, warningCelebrity
+	return bin, logFrac, warningCelebrity
 }
 
 // This function ignores celebrity status
-func (bm BehaviourModel) SatsToBinNumberRegardless(sats uint64) (bin uint64) {
+func (bm BehaviourModel) SatsToBinNumberRegardless(sats uint64) (bin uint64, logFrac float64) {
 	log := math.Log10(float64(sats))
 	logInt := math.Floor(log)
-	logFrac := log - logInt
+	logFrac = log - logInt
 	bin = uint64(logFrac * float64(bm.BinCount))
-	return bin
+	return bin, logFrac
 }
 
 func (bm *BehaviourModel) GatherData(chain chainreadinterface.IBlockChain,
@@ -139,7 +165,7 @@ func (bm *BehaviourModel) gatherData(chain chainreadinterface.IBlockChain,
 		celebritiesCount uint64
 	}
 
-	resultsChan := make(chan workerResult, numWorkers) // Work come out gere
+	resultsChan := make(chan workerResult, numWorkers) // Work comes out here
 
 	// Create an errgroup and a context
 	g, ctx := errgroup.WithContext(context.Background())
@@ -188,22 +214,28 @@ func (bm *BehaviourModel) gatherData(chain chainreadinterface.IBlockChain,
 
 							//---------------------------
 							// Core work of this function
+							var bin uint64
+							var logFrac float64
+							var celebrity bool
 							if sats == 0 {
 								local.zerosCount++
 							} else if pass == 1 {
 								// On pass 1 celebrities have not been identified
-								bin := bm.SatsToBinNumberRegardless(uint64(sats))
+								bin, logFrac = bm.SatsToBinNumberRegardless(uint64(sats))
 								bm.VipLounges[bin].Add(uint64(sats))
 								local.bins[bin]++
 								local.count++
 							} else if pass == 2 {
 								// On pass 2 we IGNORE annoying celebrities
-								bin, celebrity := bm.SatsToBinNumber(uint64(sats))
+								bin, logFrac, celebrity = bm.SatsToBinNumber(uint64(sats))
 								if celebrity {
 									local.celebritiesCount++
 								} else {
 									local.bins[bin]++
 									local.count++
+									// Welford's algorithm stuff bypasses the local workerResult
+									x := logFrac
+									bm.Stats[bin].Update(x)
 								}
 							}
 							//---------------------------
@@ -301,6 +333,17 @@ func (bm *BehaviourModel) Save(prefix string) error {
 		return err
 	}
 
+	// 1.5 Save Welford stuff as JSON
+	fWelford, err := os.Create(prefix + "_welford.json")
+	if err != nil {
+		return err
+	}
+	defer fWelford.Close()
+	err = json.NewEncoder(fWelford).Encode(bm.Stats)
+	if err != nil {
+		return err
+	}
+
 	// 2. Save Celebrities as JSON
 	// We only need to save the Seats maps from the VipLounges
 	celebData := make([]map[uint64]uint64, len(bm.VipLounges))
@@ -336,6 +379,17 @@ func (bm *BehaviourModel) Load(prefix string) error {
 	}
 	defer fPollutedBins.Close()
 	err = binary.Read(fPollutedBins, binary.LittleEndian, bm.PollutedBins)
+	if err != nil {
+		return err
+	}
+
+	// 1.5 Load Welford stuff from JSON
+	fWelford, err := os.Open(prefix + "_welford.json")
+	if err != nil {
+		return err
+	}
+	defer fWelford.Close()
+	err = json.NewDecoder(fWelford).Decode(&bm.Stats)
 	if err != nil {
 		return err
 	}

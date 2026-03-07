@@ -131,7 +131,7 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 								// First loop... The product of all probabilities in the transaction
 								probProductLog := float64(0) // Log(Prob) = 0 representing Prob = 1
 								for _, sats := range amounts {
-									log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
+									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
 									if celebrity {
 										// Celebrities distort everything, really not interested!
 									} else {
@@ -146,7 +146,7 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 								smallestProbLogNotChange := float64(0) // Which is the probability of the BEST candidate FOR change
 								bestCandidateForChange := 0
 								for satsIndex1, sats := range amounts {
-									log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
+									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
 									if celebrity {
 										// Celebrities distort everything, really not interested!
 									} else {
@@ -165,7 +165,7 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 								}
 								// A third loop... in which we exclude the change item
 								for satsIndex2, sats2 := range amounts {
-									_, celebrity2 := behaviourModel.SatsToBinNumber(sats2)
+									_, _, celebrity2 := behaviourModel.SatsToBinNumber(sats2)
 									if celebrity2 {
 										// Celebrities distort everything, really not interested!
 									} else if satsIndex2 != bestCandidateForChange {

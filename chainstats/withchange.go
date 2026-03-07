@@ -145,7 +145,7 @@ func (bp *BehaviourPrice) AnalyzeDataWithChange(chain chainreadinterface.IBlockC
 								// First loop... The product of all probabilities in the transaction
 								probProductLog := float64(0) // Log(Prob) = 0 representing Prob = 1
 								for _, sats := range amounts {
-									log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
+									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
 									if celebrity {
 										// Celebrities distort everything, really not interested!
 									} else {
@@ -160,7 +160,7 @@ func (bp *BehaviourPrice) AnalyzeDataWithChange(chain chainreadinterface.IBlockC
 								// (You'll have to look in my notes to see how this is derived)
 								probTransLog := float64(0) // Log(prob) = 0 representing prob = 1
 								for _, sats := range amounts {
-									log10Sats, celebrity := behaviourModel.SatsToBinNumber(sats)
+									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
 									if celebrity {
 										// Celebrities distort everything, really not interested!
 									} else {
