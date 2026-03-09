@@ -50,13 +50,12 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 
 				satsArray := make([]uint64, 0, 10000)             // The amounts
 				satsArrayTransIndices := make([]uint64, 0, 10000) // Indices into satsArray for each transaction
-				satsArrayNoChange := make([]uint64, 0, 10000)
+				transProbLogs := make([]float64, 0, 1000)
 
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
 
 					satsArray = satsArray[:0]
 					satsArrayTransIndices = satsArrayTransIndices[:0]
-					satsArrayNoChange = satsArrayNoChange[:0]
 
 					blockHandle, err := handles.BlockHandleByHeight(blockIdx)
 					if err != nil {
@@ -85,12 +84,21 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 							return err
 						}
 						satsArrayTransIndices = append(satsArrayTransIndices, uint64(len(satsArray)))
+						abandonTransaction := false
 						for _, sats := range txoAmounts {
 							if sats == 0 {
 								// Throw it away. Messes with logarithms and we're not interested anyway
+								// In fact throw away the entire transaction
+								abandonTransaction = true
 							} else if IsLessThanThreeDecimalDigits(uint64(sats)) {
 								// Throw it away. Very round number in sats. Unlikely to be based on round fiat.
-							} else {
+								// Furthermore, this is probably the "main" focus of the transaction,
+								// so throw the whole transaction away
+								abandonTransaction = true
+							}
+						}
+						if !abandonTransaction {
+							for _, sats := range txoAmounts {
 								satsArray = append(satsArray, uint64(sats))
 							}
 						}
@@ -119,6 +127,7 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 							probRateScoreLog := float64(0) // Log(Prob) = 0 representing Prob = 1
 							// For each transaction in the block
 							for trans, satsIndex := range satsArrayTransIndices {
+								celebritySeen := false
 								if trans == len(satsArrayTransIndices)-1 {
 									continue // Skip the last entry as it's in the next block
 								}
@@ -127,6 +136,7 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 								if len(amounts) < 2 {
 									continue // If zero or one amounts, not a "proper" transaction that we're interested in
 								}
+								transProbLogs = transProbLogs[:0]
 								// For amounts in the transaction
 								// First loop... The product of all probabilities in the transaction
 								probProductLog := float64(0) // Log(Prob) = 0 representing Prob = 1
@@ -134,45 +144,32 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
 									if celebrity {
 										// Celebrities distort everything, really not interested!
+										celebritySeen = true // Flag and assume that celebrity is change
 									} else {
 										log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
 										// Now we are in fiat, the human behaviour round number probability model holds
 										prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
 										probLog := math.Log(prob)
+										transProbLogs = append(transProbLogs, probLog)
 										probProductLog += probLog
 									}
 								}
 								// A second loop... Now we can estimate which amount of the transaction is the change
-								smallestProbLogNotChange := float64(0) // Which is the probability of the BEST candidate FOR change
-								bestCandidateForChange := 0
-								for satsIndex1, sats := range amounts {
-									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
-									if celebrity {
-										// Celebrities distort everything, really not interested!
-									} else {
-										log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
-										// Now we are in fiat, the human behaviour round number probability model holds
-										prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
-										probLog := math.Log(prob)
-										// The probability that this is NOT change is the probability of all the others occurring.
+								if !celebritySeen {
+									greatestProbLogChange := float64(-math.MaxFloat64) // Which is the probability of the BEST candidate FOR change
+									for _, probLog := range transProbLogs {
+										// The probability that this IS the transaction's change is the probability of all the
+										// other amounts in the transaction occurring according to the behaviour model.
 										// That is the product of all of them divided by this one. (A subtraction as log)
-										probLogNotChange := probProductLog - probLog
-										if probLogNotChange < smallestProbLogNotChange {
-											smallestProbLogNotChange = probLog
-											bestCandidateForChange = satsIndex1
+										probLogChange := probProductLog - probLog
+										if probLogChange > greatestProbLogChange {
+											greatestProbLogChange = probLog
 										}
 									}
+									probRateScoreLog += greatestProbLogChange // Use the prob log product that excluded change
+								} else {
+									probRateScoreLog += probProductLog // The probProductLog doesn't include celebrity (presumed change)
 								}
-								// A third loop... in which we exclude the change item
-								for satsIndex2, sats2 := range amounts {
-									_, _, celebrity2 := behaviourModel.SatsToBinNumber(sats2)
-									if celebrity2 {
-										// Celebrities distort everything, really not interested!
-									} else if satsIndex2 != bestCandidateForChange {
-										satsArrayNoChange = append(satsArrayNoChange, sats2)
-									}
-								}
-								probRateScoreLog += probProductLog - smallestProbLogNotChange // Divide by the one that was change
 							} // for transaction
 							probRateScoreLog += logOneOverN // This is the (flat) P(rate)=1/N
 							rateScoresLog[log10RateBinNumber] = probRateScoreLog
