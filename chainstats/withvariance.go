@@ -54,6 +54,9 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 				satsArrayNoChange := make([]uint64, 0, 10000)
 				logMantissaStats := make([]*variance.Stats, behaviourModel.BinCount)
 				sumWeights := make([]float64, behaviourModel.BinCount)
+				for i := range behaviourModel.BinCount {
+					logMantissaStats[i] = variance.New()
+				}
 
 				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
 
@@ -61,7 +64,7 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 					satsArrayTransIndices = satsArrayTransIndices[:0]
 					satsArrayNoChange = satsArrayNoChange[:0]
 					for i := range behaviourModel.BinCount {
-						logMantissaStats[i] = variance.New()
+						logMantissaStats[i].Clear()
 						sumWeights[i] = 0.0
 					}
 
@@ -150,8 +153,9 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 									}
 								}
 								// A second loop... Now we can estimate which amount of the transaction is the change
-								smallestProbLogNotChange := float64(0) // Which is the probability of the BEST candidate FOR change
+								greatestProbLogChange := float64(-math.MaxFloat64)
 								bestCandidateForChange := 0
+								//bestCandidateForChangeProbLog := float64(-math.MaxFloat64)
 								for satsIndex1, sats := range amounts {
 									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
 									if celebrity {
@@ -161,13 +165,15 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 										// Now we are in fiat, the human behaviour round number probability model holds
 										prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
 										probLog := math.Log(prob)
-										// ToDo Are you sure?
-										// The probability that this is NOT change is the probability of all the others occurring.
+										// The probability that this IS change is the probability
+										// of all the others occurring according to the behaviour model.
+										// That is, in general outputs obey the behaviour model; change does not.
 										// That is the product of all of them divided by this one. (A subtraction as log)
-										probLogNotChange := probProductLog - probLog
-										if probLogNotChange < smallestProbLogNotChange {
-											smallestProbLogNotChange = probLog
+										probLogChange := probProductLog - probLog
+										if probLogChange > greatestProbLogChange {
+											greatestProbLogChange = probLogChange
 											bestCandidateForChange = satsIndex1
+											//bestCandidateForChangeProbLog = probLog
 										}
 									}
 								}
@@ -176,7 +182,7 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 									log10Sats, logFrac, celebrity2 := behaviourModel.SatsToBinNumber(sats2)
 									if celebrity2 {
 										// Celebrities distort everything, really not interested!
-									} else if satsIndex2 != bestCandidateForChange {
+									} else if satsIndex2 != bestCandidateForChange || true {
 										log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
 										addToLogFrac := float64(log10RateBinNumber) / float64(N)  // Add a number between 0.0 and 1.0
 										logFracFiat := logFrac + addToLogFrac
@@ -190,12 +196,12 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 										sumWeights[log10Fiat] += prob
 									}
 								}
-								probRateScoreLog += probProductLog - smallestProbLogNotChange // Divide by the one that was change
+								probRateScoreLog += probProductLog //- bestCandidateForChangeProbLog // Divide by the one that was change
 							} // for transaction
 
 							// Now we are in a position to take account of the variances in each bin
 							// Go through each of the bins
-							ProbRateScoreLog := float64(0)
+							probRateScoreLog = float64(0)
 							for bin := range N {
 								// weighted variance of the mantissas of the amounts in this bin
 								weightedVariance := logMantissaStats[bin].Variance()
@@ -212,7 +218,7 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 								// The combined log probability P(data|Rate) taking into account variance
 								probLogData := math.Log(prob) + LLR
 								// Amalgamate to get towards P(rate)
-								ProbRateScoreLog += probLogData
+								probRateScoreLog += probLogData
 							}
 
 							probRateScoreLog += logOneOverN // This is the (flat) P(rate)=1/N
@@ -361,14 +367,38 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 	return nil
 }
 
-func Lvar(weightedVariance float64, modelVariance float64, v float64) float64 {
-	topLeft := math.Pow(modelVariance*v/2, v/2)
-	bottomLeft := math.Gamma(v / 2)
-	topRight := math.Exp(-v * modelVariance / (2 * weightedVariance))
-	bottomRight := math.Pow(weightedVariance, (1 + v/2))
-	return topLeft * topRight / bottomLeft / bottomRight
+/*
+	func Lvar(weightedVariance float64, modelVariance float64, v float64) float64 {
+		topLeft := math.Pow(modelVariance*v/2, v/2)
+		bottomLeft := math.Gamma(v / 2)
+		topRight := math.Exp(-v * modelVariance / (2 * weightedVariance))
+		bottomRight := math.Pow(weightedVariance, (1 + v/2))
+		return topLeft * topRight / bottomLeft / bottomRight
+	}
+
+	func LogLikelihoodRatio(weightedVariance float64, humanVariance float64, noiseVariance float64, v float64) float64 {
+		return math.Log(Lvar(weightedVariance, humanVariance, v)) - math.Log(Lvar(weightedVariance, noiseVariance, v))
+	}
+*/
+func LogLvar(weightedVariance, modelVariance, v float64) float64 {
+	// Prevent division by zero or log of zero
+	if weightedVariance <= 0 || modelVariance <= 0 || v <= 0 {
+		return -1e10 // A very low log-likelihood
+	}
+
+	// Log version of: (modelVar * v / 2)^(v/2) * exp(-v * modelVar / (2 * weightedVar))
+	//                 / Gamma(v/2) / weightedVar^(1 + v/2)
+
+	term1 := (v / 2) * math.Log(modelVariance*v/2)
+	term2 := -(v * modelVariance) / (2 * weightedVariance)
+	lg, _ := math.Lgamma(v / 2)
+	term3 := lg
+	term4 := (1 + v/2) * math.Log(weightedVariance)
+
+	return term1 + term2 - term3 - term4
 }
 
-func LogLikelihoodRatio(weightedVariance float64, humanVariance float64, noiseVariance float64, v float64) float64 {
-	return math.Log(Lvar(weightedVariance, humanVariance, v)) - math.Log(Lvar(weightedVariance, noiseVariance, v))
+func LogLikelihoodRatio(weightedVariance, humanVariance, noiseVariance, v float64) float64 {
+	// We can now just subtract the logs directly
+	return LogLvar(weightedVariance, humanVariance, v) - LogLvar(weightedVariance, noiseVariance, v)
 }
