@@ -3,13 +3,14 @@ package chainstats
 import (
 	"context"
 	"fmt"
-	"github.com/KitchenMishap/pudding-codec/graphics"
-	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
-	"golang.org/x/sync/errgroup"
 	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
+
+	"github.com/KitchenMishap/pudding-codec/graphics"
+	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
+	"golang.org/x/sync/errgroup"
 )
 
 // A model that captures the behaviour of humans regarding the decimal mantissa of amounts
@@ -91,12 +92,21 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 						if err != nil {
 							return err
 						}
+						abandonTransaction := false
 						for _, sats := range txoAmounts {
 							if sats == 0 {
 								// Throw it away. Messes with logarithms and we're not interested anyway
+								// In fact throw away the entire transaction
+								abandonTransaction = true
 							} else if IsLessThanThreeDecimalDigits(uint64(sats)) {
 								// Throw it away. Very round number in sats. Unlikely to be based on round fiat.
-							} else {
+								// Furthermore, this is probably the "main" focus of the transaction,
+								// so throw the whole transaction away
+								abandonTransaction = true
+							}
+						}
+						if !abandonTransaction {
+							for _, sats := range txoAmounts {
 								satsArray = append(satsArray, uint64(sats))
 							}
 						}
@@ -180,9 +190,9 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 						sumRateScoresLog := maxLog + math.Log(sumExp)
 
 						// Plot in graphics
-						//startPrintBlock := int64(888888 - graphics.Width)
-						//x := float64(blockIdx-startPrintBlock) / graphics.Width
-						x := float64(blockIdx) / 888888
+						startPrintBlock := int64(888888 - graphics.Width)
+						x := float64(blockIdx-startPrintBlock) / graphics.Width
+						//x := float64(blockIdx) / 888888
 						if x > 0 && x < 1 {
 							bp.mutex.Lock()
 							// FIRST we "paint" ALL the probabilities as grey

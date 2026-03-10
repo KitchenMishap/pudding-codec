@@ -64,7 +64,7 @@ func PriceDiscoveryHumanBehaviour(folder string) error {
 	}
 
 	bp := chainstats.NewBehaviourPrice(888_888)
-	err = bp.AnalyzeDataWithVariance(chain.Blockchain(), chain.HandleCreator(), bm, 880_000, 8_888)
+	err = bp.AnalyzeData(chain.Blockchain(), chain.HandleCreator(), bm, 880_000, 8_888)
 	if err != nil {
 		return err
 	}
