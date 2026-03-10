@@ -3,12 +3,13 @@ package chainstats
 import (
 	"context"
 	"fmt"
-	"github.com/KitchenMishap/pudding-codec/graphics"
-	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
-	"golang.org/x/sync/errgroup"
 	"math"
 	"runtime"
 	"sync/atomic"
+
+	"github.com/KitchenMishap/pudding-codec/graphics"
+	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
+	"golang.org/x/sync/errgroup"
 )
 
 // A model that captures the behaviour of humans regarding the decimal mantissa of amounts
@@ -166,7 +167,8 @@ func (bp *BehaviourPrice) AnalyzeDataDetermineChange(chain chainreadinterface.IB
 											greatestProbLogChange = probLog
 										}
 									}
-									probRateScoreLog += greatestProbLogChange // Use the prob log product that excluded change
+									//probRateScoreLog += greatestProbLogChange // Use the prob log product that excluded change
+									probRateScoreLog += probProductLog // Don't exclude change for the time being
 								} else {
 									probRateScoreLog += probProductLog // The probProductLog doesn't include celebrity (presumed change)
 								}

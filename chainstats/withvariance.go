@@ -3,13 +3,14 @@ package chainstats
 import (
 	"context"
 	"fmt"
+	"math"
+	"runtime"
+	"sync/atomic"
+
 	"github.com/KitchenMishap/pudding-codec/graphics"
 	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
 	"github.com/robitx/variance"
 	"golang.org/x/sync/errgroup"
-	"math"
-	"runtime"
-	"sync/atomic"
 )
 
 // A model that captures the behaviour of humans regarding the decimal mantissa of amounts
@@ -95,12 +96,21 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 							return err
 						}
 						satsArrayTransIndices = append(satsArrayTransIndices, uint64(len(satsArray)))
+						abandonTransaction := false
 						for _, sats := range txoAmounts {
 							if sats == 0 {
 								// Throw it away. Messes with logarithms and we're not interested anyway
+								// In fact throw away the entire transaction
+								abandonTransaction = true
 							} else if IsLessThanThreeDecimalDigits(uint64(sats)) {
 								// Throw it away. Very round number in sats. Unlikely to be based on round fiat.
-							} else {
+								// Furthermore, this is probably the "main" focus of the transaction,
+								// so throw the whole transaction away
+								abandonTransaction = true
+							}
+						}
+						if !abandonTransaction {
+							for _, sats := range txoAmounts {
 								satsArray = append(satsArray, uint64(sats))
 							}
 						}
@@ -126,7 +136,6 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 						rateScoresLog := make([]float64, N)
 						// For every possible exchange rate
 						for log10RateBinNumber, _ := range behaviourModel.Bins {
-							probRateScoreLog := float64(0) // Log(Prob) = 0 representing Prob = 1
 							// For each transaction in the block
 							for trans, satsIndex := range satsArrayTransIndices {
 								if trans == len(satsArrayTransIndices)-1 {
@@ -137,52 +146,12 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 								if len(amounts) < 2 {
 									continue // If zero or one amounts, not a "proper" transaction that we're interested in
 								}
-								// For amounts in the transaction
-								// First loop... The product of all probabilities in the transaction
-								probProductLog := float64(0) // Log(Prob) = 0 representing Prob = 1
-								for _, sats := range amounts {
-									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
-									if celebrity {
-										// Celebrities distort everything, really not interested!
-									} else {
-										log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
-										// Now we are in fiat, the human behaviour round number probability model holds
-										prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
-										probLog := math.Log(prob)
-										probProductLog += probLog
-									}
-								}
-								// A second loop... Now we can estimate which amount of the transaction is the change
-								greatestProbLogChange := float64(-math.MaxFloat64)
-								bestCandidateForChange := 0
-								//bestCandidateForChangeProbLog := float64(-math.MaxFloat64)
-								for satsIndex1, sats := range amounts {
-									log10Sats, _, celebrity := behaviourModel.SatsToBinNumber(sats)
-									if celebrity {
-										// Celebrities distort everything, really not interested!
-									} else {
-										log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
-										// Now we are in fiat, the human behaviour round number probability model holds
-										prob := float64(behaviourModel.Bins[log10Fiat]) / float64(behaviourModel.Count)
-										probLog := math.Log(prob)
-										// The probability that this IS change is the probability
-										// of all the others occurring according to the behaviour model.
-										// That is, in general outputs obey the behaviour model; change does not.
-										// That is the product of all of them divided by this one. (A subtraction as log)
-										probLogChange := probProductLog - probLog
-										if probLogChange > greatestProbLogChange {
-											greatestProbLogChange = probLogChange
-											bestCandidateForChange = satsIndex1
-											//bestCandidateForChangeProbLog = probLog
-										}
-									}
-								}
-								// A third loop... in which we exclude the change item
-								for satsIndex2, sats2 := range amounts {
+
+								for _, sats2 := range amounts {
 									log10Sats, logFrac, celebrity2 := behaviourModel.SatsToBinNumber(sats2)
 									if celebrity2 {
 										// Celebrities distort everything, really not interested!
-									} else if satsIndex2 != bestCandidateForChange || true {
+									} else {
 										log10Fiat := (log10Sats + uint64(log10RateBinNumber)) % N // Multiply is add for logs
 										addToLogFrac := float64(log10RateBinNumber) / float64(N)  // Add a number between 0.0 and 1.0
 										logFracFiat := logFrac + addToLogFrac
@@ -196,12 +165,11 @@ func (bp *BehaviourPrice) AnalyzeDataWithVariance(chain chainreadinterface.IBloc
 										sumWeights[log10Fiat] += prob
 									}
 								}
-								probRateScoreLog += probProductLog //- bestCandidateForChangeProbLog // Divide by the one that was change
 							} // for transaction
 
 							// Now we are in a position to take account of the variances in each bin
 							// Go through each of the bins
-							probRateScoreLog = float64(0)
+							probRateScoreLog := float64(0)
 							for bin := range N {
 								// weighted variance of the mantissas of the amounts in this bin
 								weightedVariance := logMantissaStats[bin].Variance()
