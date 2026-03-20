@@ -62,55 +62,63 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 				satsArrayLimited := make([]uint64, 0, 10000)
 				satsHistogram := make(map[uint64]int, 1000)
 				remainingSats := make([]uint64, 0, 10000)
-				for blockIdx := blockBatch; blockIdx < blockBatch+blocksInBatch && blockIdx < interestedBlock+interestedBlocks; blockIdx++ {
+				const blocksPerAnalysis = 4
+				if blocksInBatch%blocksPerAnalysis != 0 {
+					panic("blocksInBatch must divide by blocksPerAnalysis")
+				}
+				for blockIdxBase := blockBatch; blockIdxBase < blockBatch+blocksInBatch && blockIdxBase < interestedBlock+interestedBlocks; blockIdxBase += blocksPerAnalysis {
 
 					satsArray = satsArray[:0]
 
-					blockHandle, err := handles.BlockHandleByHeight(int64(blockIdx))
-					if err != nil {
-						return err
-					}
-					block, err := chain.BlockInterface(blockHandle)
-					if err != nil {
-						return err
-					}
+					// Loop through a small number of blocks
+					for blockIdx := blockIdxBase; blockIdx < blockIdxBase+blocksPerAnalysis; blockIdx++ {
 
-					tCount, err := block.TransactionCount()
-					if err != nil {
-						return err
-					}
-					for t := int64(0); t < tCount; t++ {
-						transHandle, err := block.NthTransaction(t)
+						blockHandle, err := handles.BlockHandleByHeight(int64(blockIdx))
 						if err != nil {
 							return err
 						}
-						trans, err := chain.TransInterface(transHandle)
+						block, err := chain.BlockInterface(blockHandle)
 						if err != nil {
 							return err
 						}
-						txoAmounts, err := trans.AllTxoSatoshis()
+
+						tCount, err := block.TransactionCount()
 						if err != nil {
 							return err
 						}
-						abandonTransaction := false
-						for _, sats := range txoAmounts {
-							if sats == 0 {
-								// Throw it away. Messes with logarithms and we're not interested anyway
-								// In fact throw away the entire transaction
-								abandonTransaction = true
-							} else if IsLessThanThreeDecimalDigits(uint64(sats)) {
-								// Throw it away. Very round number in sats. Unlikely to be based on round fiat.
-								// Furthermore, this is probably the "main" focus of the transaction,
-								// so throw the whole transaction away
-								abandonTransaction = true
+						for t := int64(0); t < tCount; t++ {
+							transHandle, err := block.NthTransaction(t)
+							if err != nil {
+								return err
 							}
-						}
-						if !abandonTransaction {
+							trans, err := chain.TransInterface(transHandle)
+							if err != nil {
+								return err
+							}
+							txoAmounts, err := trans.AllTxoSatoshis()
+							if err != nil {
+								return err
+							}
+							abandonTransaction := false
 							for _, sats := range txoAmounts {
-								satsArray = append(satsArray, uint64(sats))
+								if sats == 0 {
+									// Throw it away. Messes with logarithms and we're not interested anyway
+									// In fact throw away the entire transaction
+									abandonTransaction = true
+								} else if IsLessThanThreeDecimalDigits(uint64(sats)) {
+									// Throw it away. Very round number in sats. Unlikely to be based on round fiat.
+									// Furthermore, this is probably the "main" focus of the transaction,
+									// so throw the whole transaction away
+									abandonTransaction = true
+								}
 							}
-						}
-					} // for transactions
+							if !abandonTransaction {
+								for _, sats := range txoAmounts {
+									satsArray = append(satsArray, uint64(sats))
+								}
+							}
+						} // for transactions
+					} // for blockIdx within blockIdxBase
 
 					//---------------------------
 					// Core work of this function
@@ -191,7 +199,8 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 
 						// Plot in graphics
 						startPrintBlock := int64(888888 - graphics.Width)
-						x := float64(blockIdx-startPrintBlock) / graphics.Width
+						x := float64(blockIdxBase-startPrintBlock) / graphics.Width
+						pixelStep := float64(1) / float64(graphics.Width)
 						//x := float64(blockIdx) / 888888
 						if x > 0 && x < 1 {
 							bp.mutex.Lock()
@@ -223,7 +232,9 @@ func (bp *BehaviourPrice) AnalyzeData(chain chainreadinterface.IBlockChain,
 							rd := peelColours[peel][0]
 							gn := peelColours[peel][1]
 							bl := peelColours[peel][2]
-							bp.Pgm.SetPoint(x, y, rd, gn, bl)
+							for xx := x; xx < x+blocksPerAnalysis*pixelStep; xx += pixelStep {
+								bp.Pgm.SetPoint(xx, y, rd, gn, bl)
+							}
 							bp.mutex.Unlock()
 						} // if x between 0 and 1
 
