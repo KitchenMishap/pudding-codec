@@ -5,13 +5,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
-	"golang.org/x/sync/errgroup"
 	"math"
 	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
+
+	"github.com/KitchenMishap/pudding-shed/chainreadinterface"
+	"golang.org/x/sync/errgroup"
 )
 
 // A model that captures the behaviour of humans regarding the decimal mantissa of amounts
@@ -331,6 +332,22 @@ func (bm *BehaviourModel) Save(prefix string) error {
 	err = binary.Write(fPollutedBins, binary.LittleEndian, bm.PollutedBins)
 	if err != nil {
 		return err
+	}
+
+	// 1.2 Save bins as Csv (just for debug)
+	fCsvBins, err := os.Create(prefix + "_bins.csv")
+	if err != nil {
+		return err
+	}
+	defer fCsvBins.Close()
+	fCsvPollutedBins, err := os.Create(prefix + "_pollutedbins.csv")
+	if err != nil {
+		return err
+	}
+	defer fCsvPollutedBins.Close()
+	for i := range bm.Bins {
+		fmt.Fprintf(fCsvBins, "%f\n", float64(bm.Bins[i])/float64(bm.Count))
+		fmt.Fprintf(fCsvPollutedBins, "%f\n", float64(bm.PollutedBins[i])/float64(bm.Count))
 	}
 
 	// 1.5 Save Welford stuff as JSON
